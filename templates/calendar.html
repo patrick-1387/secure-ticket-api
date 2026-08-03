@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="calendar-page">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Calendar</h1>
+            <p class="text-muted mb-0">Requests grouped by Start Date</p>
+        </div>
+        <div class="calendar-nav-controls" aria-label="Calendar month navigation">
+            <a class="calendar-nav-arrow" href="{{ prev_month_url }}" aria-label="Previous month">&lt;</a>
+            <div class="calendar-month-title">{{ month_name }} {{ current_year }}</div>
+            <a class="calendar-nav-arrow" href="{{ next_month_url }}" aria-label="Next month">&gt;</a>
+        </div>
+    </div>
+
+    <div class="calendar-priority-legend mb-3" role="note" aria-label="Priority legend">
+        <span class="calendar-legend-title">Priority Legend</span>
+        <span class="calendar-legend-item">
+            <span class="calendar-legend-swatch swatch-low" aria-hidden="true"></span>
+            Green = Low
+        </span>
+        <span class="calendar-legend-item">
+            <span class="calendar-legend-swatch swatch-average" aria-hidden="true"></span>
+            Yellow = Average
+        </span>
+        <span class="calendar-legend-item">
+            <span class="calendar-legend-swatch swatch-high" aria-hidden="true"></span>
+            Orange = High
+        </span>
+        <span class="calendar-legend-item">
+            <span class="calendar-legend-swatch swatch-critical" aria-hidden="true"></span>
+            Red = Critical
+        </span>
+    </div>
+
+    <div class="calendar-grid">
+        {% for label in day_labels %}
+            <div class="calendar-weekday">{{ label }}</div>
+        {% endfor %}
+
+        {% for week in month_weeks %}
+            {% for day in week %}
+                <div class="calendar-day {% if not day.is_current_month %}calendar-day-outside{% endif %} {% if day.is_today %}calendar-day-today{% endif %}">
+                    <div class="calendar-day-header">
+                        <span class="calendar-day-number">{{ day.day }}</span>
+                    </div>
+
+                    <div class="calendar-day-items">
+                        {% for item in day.requests %}
+                            {% set item_priority = priority_meta_for_score(item.total_score) %}
+                            {% set priority_class = 'calendar-item-' ~ item_priority.slug %}
+                            <a class="calendar-item {{ priority_class }}" href="{{ url_for('view_request', request_id=item.id) }}" aria-label="Open {{ item.project_name }} request details">
+                                <div class="calendar-item-project">{{ item.project_name }}</div>
+                                <div class="calendar-item-assigned-lead">Assigned Lead: {{ item.assigned_lead }}</div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .calendar-page {
+        padding-bottom: 0.6rem;
+    }
+
+    .calendar-month-title {
+        min-width: 170px;
+        text-align: center;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .calendar-nav-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.4rem;
+        background: #fff;
+        border: 1px solid #dbe3ee;
+        border-radius: 0.35rem;
+        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.05);
+    }
+
+    .calendar-nav-arrow {
+        width: 1.65rem;
+        height: 1.65rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.28rem;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 0.8rem;
+        color: #1f2937;
+        background: #f3f4f6;
+        transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .calendar-priority-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.85rem;
+        align-items: center;
+        padding: 0.45rem 0.6rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.35rem;
+    }
+
+    .calendar-legend-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-right: 0.2rem;
+    }
+
+    .calendar-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        color: #1f2937;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .calendar-legend-swatch {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 0.15rem;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+    }
+
+    .swatch-low { background: #22c55e; }
+    .swatch-average { background: #eab308; }
+    .swatch-high { background: #f97316; }
+    .swatch-critical { background: #ef4444; }
+
+    [data-theme="dark"] .calendar-month-title {
+        color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .calendar-nav-controls,
+    [data-theme="dark"] .calendar-priority-legend {
+        background: #101a2d;
+        border-color: #2a3c5f;
+    }
+
+    [data-theme="dark"] .calendar-nav-arrow {
+        background: #16233a;
+        color: #dbe4f0;
+        border: 1px solid #2a3c5f;
+    }
+
+    [data-theme="dark"] .calendar-nav-arrow:hover {
+        background: #20304a;
+    }
+
+    [data-theme="dark"] .calendar-legend-title,
+    [data-theme="dark"] .calendar-legend-item {
+        color: #dbe4f0;
+    }
+
+    [data-theme="dark"] .calendar-weekday {
+        background: #162033;
+        border-color: #2a3c5f;
+        color: #b9c7db;
+    }
+
+    [data-theme="dark"] .calendar-day {
+        background: #101a2d;
+        border-color: #2a3c5f;
+    }
+
+    [data-theme="dark"] .calendar-day:hover {
+        background: #15233a;
+        border-color: #3a5578;
+    }
+
+    [data-theme="dark"] .calendar-day-outside {
+        background: #0f172a;
+        color: #8ca0bd;
+    }
+
+    [data-theme="dark"] .calendar-day-number {
+        background: #1d2f4a;
+        color: #bfdbfe;
+    }
+
+    [data-theme="dark"] .calendar-day-outside .calendar-day-number {
+        background: #22314d;
+        color: #a8b5c8;
+    }
+
+    [data-theme="dark"] .calendar-item {
+        color: #f8fafc;
+        border-color: rgba(226, 232, 240, 0.22);
+    }
+
+    [data-theme="dark"] .calendar-item:hover {
+        border-color: rgba(226, 232, 240, 0.46);
+    }
+
+    [data-theme="dark"] .calendar-item-assigned-lead {
+        color: rgba(241, 245, 249, 0.88);
+    }
+
+    [data-theme="dark"] .calendar-item-critical {
+        background: rgba(239, 68, 68, 0.3);
+        border-color: rgba(239, 68, 68, 0.68);
+    }
+
+    [data-theme="dark"] .calendar-item-high {
+        background: rgba(249, 115, 22, 0.3);
+        border-color: rgba(249, 115, 22, 0.68);
+    }
+
+    [data-theme="dark"] .calendar-item-average {
+        background: rgba(234, 179, 8, 0.28);
+        border-color: rgba(234, 179, 8, 0.62);
+    }
+
+    [data-theme="dark"] .calendar-item-low {
+        background: rgba(34, 197, 94, 0.24);
+        border-color: rgba(34, 197, 94, 0.55);
+    }
+
+    .calendar-nav-arrow:hover {
+        background: #e5e7eb;
+        transform: translateY(-1px);
+    }
+
+    .calendar-nav-arrow:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.28rem;
+    }
+
+    .calendar-weekday {
+        padding: 0.35rem 0.45rem;
+        background: #f3f6fa;
+        color: #64748b;
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border: 1px solid #e3e9f2;
+        border-radius: 0.25rem;
+        text-align: center;
+    }
+
+    .calendar-day {
+        height: 116px;
+        background: #fff;
+        border: 1px solid #e5eaf1;
+        border-radius: 0.28rem;
+        padding: 0.32rem;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.28rem;
+        transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .calendar-day:hover {
+        background: #f8fbff;
+        border-color: #d7e3f4;
+    }
+
+    .calendar-day-outside {
+        background: #f8fafc;
+        color: #9ca3af;
+        opacity: 1;
+    }
+
+    .calendar-day-today {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.16);
+    }
+
+    .calendar-day-header {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .calendar-day-number {
+        width: 1.35rem;
+        height: 1.35rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.2rem;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-weight: 700;
+        font-size: 0.72rem;
+    }
+
+    .calendar-day-outside .calendar-day-number {
+        background: #e5e7eb;
+        color: #6b7280;
+    }
+
+    .calendar-day-items {
+        display: flex;
+        flex-direction: column;
+        gap: 0.24rem;
+        overflow: auto;
+    }
+
+    .calendar-item {
+        border-radius: 0.22rem;
+        padding: 0.28rem 0.35rem;
+        color: #111827;
+        border: 1px solid transparent;
+        box-shadow: none;
+        text-decoration: none;
+        display: block;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .calendar-item:hover {
+        border-color: rgba(30, 41, 59, 0.28);
+    }
+
+    .calendar-item:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 1px;
+    }
+
+    .calendar-item-critical {
+        background: #fee2e2;
+        border-color: #fecaca;
+    }
+
+    .calendar-item-high {
+        background: #ffedd5;
+        border-color: #fdba74;
+    }
+
+    .calendar-item-average {
+        background: #fef3c7;
+        border-color: #fde68a;
+    }
+
+    .calendar-item-low {
+        background: #dcfce7;
+        border-color: #bbf7d0;
+    }
+
+    .calendar-item-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .calendar-item-project {
+        font-size: 0.67rem;
+        font-weight: 600;
+        line-height: 1.25;
+        flex: 1;
+    }
+
+    .calendar-item-assigned-lead {
+        margin-top: 0.15rem;
+        font-size: 0.62rem;
+        color: rgba(17, 24, 39, 0.8);
+        line-height: 1.2;
+        font-weight: 500;
+    }
+
+    .calendar-item-score-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2rem;
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.2rem;
+        background: rgba(255, 255, 255, 0.65);
+        font-size: 0.66rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #111827;
+    }
+
+    @media (max-width: 1200px) {
+        .calendar-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .calendar-weekday {
+            display: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .calendar-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .calendar-day {
+            height: auto;
+            min-height: 98px;
+        }
+
+        .calendar-month-title {
+            min-width: 0;
+        }
+
+        .calendar-priority-legend {
+            padding: 0.4rem 0.5rem;
+            gap: 0.45rem 0.6rem;
+        }
+    }
+</style>
+{% endblock %}

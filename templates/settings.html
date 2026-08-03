@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 p-md-4">
+                <h1 class="h4 mb-1">Settings</h1>
+                <p class="text-secondary mb-0">Personalize your dashboard and app behavior. Preferences are saved in your browser.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h6 text-uppercase text-muted mb-3">Appearance</h2>
+                <div class="d-flex justify-content-between align-items-center setting-row">
+                    <div>
+                        <div class="fw-semibold">Dark Mode</div>
+                        <div class="text-muted small">Use a darker theme across the app.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="themeToggle">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h6 text-uppercase text-muted mb-3">Notifications <span class="fw-normal text-secondary">(WIP)</span></h2>
+                <div class="d-flex justify-content-between align-items-center setting-row">
+                    <div>
+                        <div class="fw-semibold">Enable Notifications <span class="text-secondary fw-normal">(WIP)</span></div>
+                        <div class="text-muted small">Planned feature. In-app notification prompts are not yet implemented.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="notificationsToggle">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center setting-row">
+                    <div>
+                        <div class="fw-semibold">High-Priority Alerts <span class="text-secondary fw-normal">(WIP)</span></div>
+                        <div class="text-muted small">Planned feature. Critical priority alerts are not yet implemented.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="highPriorityAlertsToggle">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h6 text-uppercase text-muted mb-3">Dashboard</h2>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="defaultSortSelect">Default Sort (WIP)</label>
+                    <select class="form-select form-select-sm" id="defaultSortSelect">
+                        <option value="score">Priority Rating</option>
+                        <option value="date">Start Date</option>
+                        <option value="status">Status</option>
+                        <option value="assigned_lead">Assigned Lead</option>
+                        <option value="requested_by">Requested By</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h6 text-uppercase text-muted mb-3">System</h2>
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <div class="d-flex justify-content-between align-items-center setting-row setting-row-tight">
+                            <div>
+                                <div class="fw-semibold">Auto-Refresh Dashboard (WIP)</div>
+                                <div class="text-muted small">Refresh dashboard automatically every 60 seconds.</div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="dateFormatSelect">Date Format</label>
+                        <select class="form-select form-select-sm" id="dateFormatSelect">
+                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .setting-row {
+        padding-block: 0.35rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .setting-row:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+    }
+
+    .setting-row-tight {
+        padding-block: 0;
+    }
+
+    [data-theme="dark"] .setting-row {
+        border-top-color: rgba(148, 163, 184, 0.28);
+    }
+</style>
+
+<script>
+(function () {
+    function getPref(key, fallback) {
+        var value = localStorage.getItem(key);
+        return value === null ? fallback : value;
+    }
+
+    function setBoolFromToggle(toggleId, key) {
+        var toggle = document.getElementById(toggleId);
+        toggle.checked = getPref(key, 'false') === 'true';
+        toggle.addEventListener('change', function () {
+            localStorage.setItem(key, String(toggle.checked));
+        });
+    }
+
+    var themeToggle = document.getElementById('themeToggle');
+    themeToggle.checked = getPref('goec.theme', 'light') === 'dark';
+    themeToggle.addEventListener('change', function () {
+        localStorage.setItem('goec.theme', themeToggle.checked ? 'dark' : 'light');
+        if (window.GOECPreferences && window.GOECPreferences.applyTheme) {
+            window.GOECPreferences.applyTheme();
+        }
+    });
+
+    setBoolFromToggle('notificationsToggle', 'goec.notificationsEnabled');
+    setBoolFromToggle('highPriorityAlertsToggle', 'goec.highPriorityAlerts');
+    setBoolFromToggle('autoRefreshToggle', 'goec.autoRefresh');
+
+    var defaultSortSelect = document.getElementById('defaultSortSelect');
+    defaultSortSelect.value = getPref('goec.defaultSort', 'score');
+    defaultSortSelect.addEventListener('change', function () {
+        localStorage.setItem('goec.defaultSort', defaultSortSelect.value);
+    });
+
+    var dateFormatSelect = document.getElementById('dateFormatSelect');
+    dateFormatSelect.value = getPref('goec.dateFormat', 'YYYY-MM-DD');
+    dateFormatSelect.addEventListener('change', function () {
+        localStorage.setItem('goec.dateFormat', dateFormatSelect.value);
+        if (window.GOECPreferences && window.GOECPreferences.applyDateFormat) {
+            window.GOECPreferences.applyDateFormat();
+        }
+    });
+
+}());
+</script>
+{% endblock %}

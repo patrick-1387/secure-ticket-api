@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+        <h1 class="h4 mb-1">Insights</h1>
+        <p class="text-muted small mb-0">Compact analytics view for request portfolio health.</p>
+    </div>
+    <div class="small text-muted">Total Requests: <strong>{{ total_requests }}</strong></div>
+</div>
+
+<div class="row g-2">
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100 insights-card">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 mb-0">Requests by Priority Rating</h2>
+                    <span class="insights-meta">Pie</span>
+                </div>
+                <div class="chart-wrap chart-wrap-sm">
+                    <canvas id="priorityChart" aria-label="Requests by priority chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100 insights-card">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 mb-0">Requests by Status</h2>
+                    <span class="insights-meta">Bar</span>
+                </div>
+                <div class="chart-wrap chart-wrap-sm">
+                    <canvas id="statusChart" aria-label="Requests by status chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm insights-card">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 mb-0">Requests Over Time</h2>
+                    <span class="insights-meta">Line</span>
+                </div>
+                <div class="chart-wrap chart-wrap-lg">
+                    <canvas id="timelineChart" aria-label="Requests over time chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .insights-card {
+        border: 1px solid #e5eaf1;
+    }
+
+    .chart-wrap {
+        position: relative;
+        width: 100%;
+    }
+
+    .chart-wrap-sm {
+        height: 220px;
+    }
+
+    .chart-wrap-lg {
+        height: 260px;
+    }
+
+    .insights-meta {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+    }
+
+    [data-theme="dark"] .insights-card {
+        border-color: #2a3c5f;
+    }
+
+    [data-theme="dark"] .insights-meta {
+        color: #9fb0c9;
+    }
+</style>
+
+<script id="insights-chart-data" type="application/json">{{ {
+    'priority_labels': priority_labels,
+    'priority_values': priority_values,
+    'priority_colors': priority_colors,
+    'status_labels': status_labels,
+    'status_values': status_values,
+    'status_colors': status_colors,
+    'timeline_labels': timeline_labels,
+    'timeline_values': timeline_values
+} | tojson }}</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    function chartTextColor() {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? '#dbe4f0' : '#334155';
+    }
+
+    var textColor = chartTextColor();
+    var isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+    var gridColor = document.documentElement.getAttribute('data-theme') === 'dark'
+        ? 'rgba(148, 163, 184, 0.22)'
+        : 'rgba(148, 163, 184, 0.25)';
+    var pieBorderColor = isDarkMode ? '#0f172a' : '#ffffff';
+    var tooltipBg = isDarkMode ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.96)';
+    var tooltipTitleColor = isDarkMode ? '#f1f5f9' : '#0f172a';
+    var tooltipBodyColor = isDarkMode ? '#e2e8f0' : '#1f2937';
+    var chartDataEl = document.getElementById('insights-chart-data');
+    var chartData = chartDataEl ? JSON.parse(chartDataEl.textContent) : {};
+
+    var sharedLegend = {
+        position: 'bottom',
+        labels: {
+            boxWidth: 10,
+            boxHeight: 10,
+            padding: 10,
+            font: { size: 11 },
+            color: textColor
+        }
+    };
+
+    new Chart(document.getElementById('priorityChart'), {
+        type: 'pie',
+        data: {
+            labels: chartData.priority_labels || [],
+            datasets: [{
+                data: chartData.priority_values || [],
+                backgroundColor: chartData.priority_colors || [],
+                borderWidth: 1,
+                borderColor: pieBorderColor
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: sharedLegend,
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: tooltipBg,
+                    titleColor: tooltipTitleColor,
+                    bodyColor: tooltipBodyColor,
+                    borderColor: gridColor,
+                    borderWidth: 1
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('statusChart'), {
+        type: 'bar',
+        data: {
+            labels: chartData.status_labels || [],
+            datasets: [{
+                label: 'Requests',
+                data: chartData.status_values || [],
+                backgroundColor: chartData.status_colors || [],
+                borderColor: isDarkMode ? '#0f172a' : '#ffffff',
+                borderWidth: 1,
+                borderRadius: 4,
+                maxBarThickness: 42
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: sharedLegend,
+                tooltip: {
+                    backgroundColor: tooltipBg,
+                    titleColor: tooltipTitleColor,
+                    bodyColor: tooltipBodyColor,
+                    borderColor: gridColor,
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: textColor, font: { size: 11 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor, precision: 0, font: { size: 11 } },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+
+    var timelineLabels = chartData.timeline_labels || [];
+    var timelineValues = chartData.timeline_values || [];
+
+    new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+            labels: timelineLabels,
+            datasets: [{
+                label: 'Requests',
+                data: timelineValues,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.14)',
+                fill: true,
+                tension: 0.26,
+                pointRadius: 2.6,
+                pointHoverRadius: 4,
+                pointBackgroundColor: isDarkMode ? '#93c5fd' : '#2563eb',
+                pointBorderColor: isDarkMode ? '#0f172a' : '#ffffff'
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: sharedLegend,
+                tooltip: {
+                    backgroundColor: tooltipBg,
+                    titleColor: tooltipTitleColor,
+                    bodyColor: tooltipBodyColor,
+                    borderColor: gridColor,
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: textColor, maxRotation: 0, autoSkip: true, font: { size: 11 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor, precision: 0, font: { size: 11 } },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+}());
+</script>
+{% endblock %}

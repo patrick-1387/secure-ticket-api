@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% macro sortable_header(label, field, align='start') %}
+    {% set is_active = current_sort == field %}
+    {% set next_order = 'desc' if is_active and current_order == 'asc' else 'asc' %}
+    <th class="text-{{ align }}">
+        <a
+            class="sort-link {{ 'active' if is_active else '' }}"
+            href="{{ url_for(
+                'dashboard',
+                view=filters.view,
+                q=filters.q,
+                stakeholder_group=filters.stakeholder_group,
+                requested_by=filters.requested_by,
+                assigned_lead=filters.assigned_lead,
+                status=filters.status,
+                priority=filters.priority,
+                start_date_from=filters.start_date_from,
+                start_date_to=filters.start_date_to,
+                sort=field,
+                order=next_order
+            ) }}"
+        >
+            <span>{{ label }}</span>
+            <span class="sort-indicator" aria-hidden="true">
+                {% if is_active and current_order == 'asc' %}
+                    &uarr;
+                {% elif is_active and current_order == 'desc' %}
+                    &darr;
+                {% else %}
+                    &harr;
+                {% endif %}
+            </span>
+        </a>
+    </th>
+{% endmacro %}
+
+{# Portfolio KPIs are computed server-side in app.py summary dict. #}
+<div class="row g-2 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card summary-card card-purple h-100">
+            <div class="card-body">
+                <div class="summary-label">Total Projects</div>
+                <div class="summary-value">{{ summary.total_projects }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card summary-card card-green h-100">
+            <div class="card-body">
+                <div class="summary-label">Active Requests</div>
+                <div class="summary-value">{{ summary.active_requests }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card summary-card card-blue h-100">
+            <div class="card-body">
+                <div class="summary-label">New Requests</div>
+                <div class="summary-value">{{ summary.new_requests }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        {% set avg_score = summary.average_capability_score %}
+        {% set avg_priority = priority_meta_for_score(avg_score) %}
+        {% set avg_card_class = 'card-avg-' ~ avg_priority.slug %}
+        <div class="card summary-card {{ avg_card_class }} h-100">
+            <div class="card-body">
+                <div class="summary-label">Average Priority Rating</div>
+                <div class="summary-value">{{ "%.2f"|format(summary.average_capability_score) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="filter-toolbar mb-2">
+    {# Keep filters on one row on large screens and allow graceful wrap on smaller screens. #}
+    <form method="get" action="{{ url_for('dashboard') }}" class="filter-toolbar-form d-flex flex-wrap flex-lg-nowrap align-items-center gap-2">
+            <input type="hidden" name="view" value="{{ current_view }}">
+            <input type="hidden" name="sort" value="{{ current_sort }}">
+            <input type="hidden" name="order" value="{{ current_order }}">
+
+            <div class="filter-control-wrap filter-search-wrap">
+                <i class="bi bi-search filter-input-icon" aria-hidden="true"></i>
+                <input
+                    class="form-control form-control-sm filter-search"
+                    id="q"
+                    name="q"
+                    placeholder="Search lead, project, requester, or request #"
+                    value="{{ filters.q }}"
+                >
+            </div>
+
+            <div class="filter-control-wrap">
+                <i class="bi bi-person filter-input-icon" aria-hidden="true"></i>
+                <select class="form-select form-select-sm filter-select" id="requested_by" name="requested_by" aria-label="Requested by">
+                    <option value="">Requested By</option>
+                    {% for option in filter_options.requested_by %}
+                        <option value="{{ option }}" {% if filters.requested_by == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control-wrap">
+                <i class="bi bi-person-badge filter-input-icon" aria-hidden="true"></i>
+                <select class="form-select form-select-sm filter-select" id="assigned_lead" name="assigned_lead" aria-label="Assigned lead">
+                    <option value="">Assigned Lead</option>
+                    {% for option in filter_options.assigned_lead %}
+                        <option value="{{ option }}" {% if filters.assigned_lead == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control-wrap">
+                <i class="bi bi-funnel filter-input-icon" aria-hidden="true"></i>
+                <select class="form-select form-select-sm filter-select" id="stakeholder_group" name="stakeholder_group" aria-label="Stakeholder group">
+                    <option value="">Stakeholder Group</option>
+                    {% for option in filter_options.stakeholder_groups %}
+                        <option value="{{ option }}" {% if filters.stakeholder_group == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control-wrap">
+                <i class="bi bi-funnel filter-input-icon" aria-hidden="true"></i>
+                <select class="form-select form-select-sm filter-select" id="status" name="status" aria-label="Status">
+                    <option value="">Status</option>
+                    {% for option in filter_options.statuses %}
+                        <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control-wrap">
+                <i class="bi bi-exclamation-diamond filter-input-icon" aria-hidden="true"></i>
+                <select class="form-select form-select-sm filter-select" id="priorityFilterInput" name="priority" aria-label="Priority">
+                    <option value="">Priority</option>
+                    {% for level in priority_levels %}
+                        <option value="{{ level.label }}" {% if filters.priority == level.label %}selected{% endif %}>{{ level.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <input
+                type="date"
+                class="form-control form-control-sm filter-date"
+                id="start_date_from"
+                name="start_date_from"
+                value="{{ filters.start_date_from }}"
+                aria-label="Start date from"
+            >
+
+            <input
+                type="date"
+                class="form-control form-control-sm filter-date"
+                id="start_date_to"
+                name="start_date_to"
+                value="{{ filters.start_date_to }}"
+                aria-label="Start date to"
+            >
+
+            <a class="btn btn-sm btn-outline-secondary filter-reset-btn ms-lg-auto" href="{{ url_for('dashboard', view='all', sort='total_score', order='desc') }}">Reset Filters</a>
+    </form>
+</div>
+
+<div class="d-flex flex-wrap flex-lg-nowrap align-items-center justify-content-between mb-2 gap-2 dashboard-view-priority-row">
+    <div class="d-inline-flex align-items-center gap-2 view-filter-wrap flex-wrap">
+        <span class="small text-muted">View:</span>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Request visibility view">
+            <a class="btn {{ 'btn-primary' if current_view == 'my' else 'btn-outline-secondary' }}" href="{{ url_for('dashboard', view='my', q=filters.q, stakeholder_group=filters.stakeholder_group, requested_by=filters.requested_by, assigned_lead=filters.assigned_lead, status=filters.status, priority=filters.priority, start_date_from=filters.start_date_from, start_date_to=filters.start_date_to, sort=current_sort, order=current_order) }}">My Requests</a>
+            <a class="btn {{ 'btn-primary' if current_view == 'all' else 'btn-outline-secondary' }}" href="{{ url_for('dashboard', view='all', q=filters.q, stakeholder_group=filters.stakeholder_group, requested_by=filters.requested_by, assigned_lead=filters.assigned_lead, status=filters.status, priority=filters.priority, start_date_from=filters.start_date_from, start_date_to=filters.start_date_to, sort=current_sort, order=current_order) }}">All Requests</a>
+        </div>
+    </div>
+
+    <div class="d-inline-flex align-items-center gap-2 quick-priority-wrap flex-wrap">
+        <span class="small text-muted">Quick Priority:</span>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Quick priority filters" id="quickPriorityFilters" data-initial="{{ filters.priority|lower|replace(' ', '-') if filters.priority else 'all' }}">
+            <button type="button" class="btn {{ 'btn-primary' if not filters.priority else 'btn-outline-secondary' }}" data-priority="all">All</button>
+            <button type="button" class="btn {{ 'btn-primary' if filters.priority == 'Critical' else 'btn-outline-secondary' }}" data-priority="critical">Critical</button>
+            <button type="button" class="btn {{ 'btn-primary' if filters.priority == 'High' else 'btn-outline-secondary' }}" data-priority="high">High</button>
+            <button type="button" class="btn {{ 'btn-primary' if filters.priority == 'Average' else 'btn-outline-secondary' }}" data-priority="average">Average</button>
+            <button type="button" class="btn {{ 'btn-primary' if filters.priority == 'Low' else 'btn-outline-secondary' }}" data-priority="low">Low</button>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm request-table-wrap">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 requests-table">
+            <thead>
+                <tr>
+                    {{ sortable_header('ID', 'id', 'center') }}
+                    {{ sortable_header('Project Name', 'project_name') }}
+                    {{ sortable_header('Status', 'status', 'center') }}
+                    {{ sortable_header('Start Date', 'start_date', 'center') }}
+                    {{ sortable_header('Assigned Lead', 'assigned_lead') }}
+                    {{ sortable_header('Requested By', 'requested_by') }}
+                    {{ sortable_header('Priority Rating', 'total_score', 'center') }}
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if requests %}
+                    {% for item in requests %}
+                        {% set item_priority = priority_meta_for_label(item.priority) %}
+                        <tr class="row-priority-{{ item_priority.slug }}" data-priority="{{ item_priority.slug }}">
+                            <td class="text-center text-muted">{{ item.request_number }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ item.project_name }}</div>
+                            </td>
+                            <td class="text-center">
+                                {# Map each workflow state to a consistent visual badge color. #}
+                                {% set display_status = normalize_status(item.status) %}
+                                {% if display_status == 'New' %}
+                                    <span class="badge status-badge badge-status-new">{{ display_status }}</span>
+                                {% elif display_status == 'In Progress' %}
+                                    <span class="badge status-badge badge-status-inprogress">{{ display_status }}</span>
+                                {% elif display_status == 'Deferred' %}
+                                    <span class="badge status-badge badge-status-deferred">{{ display_status }}</span>
+                                {% elif display_status == 'Completed' %}
+                                    <span class="badge status-badge badge-status-completed">{{ display_status }}</span>
+                                {% else %}
+                                    <span class="badge status-badge badge-status-onhold">{{ display_status }}</span>
+                                {% endif %}
+                                <div class="mt-1">
+                                    {% if item.reviewed %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Reviewed</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Pending Review</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center text-muted" data-iso-date="{{ item.start_date.strftime('%Y-%m-%d') if item.start_date else '' }}">{{ item.start_date.strftime('%Y-%m-%d') if item.start_date else '-' }}</td>
+                            <td>{{ item.assigned_lead }}</td>
+                            <td>{{ item.requested_by }}</td>
+                            <td class="text-center">
+                                {% set score_priority = priority_meta_for_score(item.total_score) %}
+                                <span class="badge score-badge {{ score_priority.badge_class }}">{{ item.total_score }}</span>
+                                <span class="small ms-1 {{ score_priority.text_class }} fw-semibold">{{ score_priority.label }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <a class="btn btn-sm btn-info text-white row-action-link" href="{{ url_for('view_request', request_id=item.id) }}">View</a>
+                                    {% if (item.requested_by == current_user.username and not item.reviewed) or current_user.role in ['internal', 'admin'] %}
+                                        <a class="btn btn-sm btn-primary row-action-link" href="{{ url_for('edit_request', request_id=item.id) }}">Edit</a>
+                                    {% endif %}
+                                    {% if (item.requested_by == current_user.username and not item.reviewed) or current_user.role == 'admin' %}
+                                        <form method="post" action="{{ url_for('delete_request', id=item.id) }}" class="d-inline">
+                                            <button
+                                                type="submit"
+                                                class="btn btn-sm btn-danger row-action-link"
+                                                onclick="return confirm('Are you sure you want to delete this request?')"
+                                            >
+                                                Delete
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">No requests found for the selected filters.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .filter-toolbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .filter-toolbar-form {
+        min-width: max-content;
+        justify-content: flex-start;
+    }
+
+    .filter-search-wrap {
+        width: 260px;
+    }
+
+    .filter-search {
+        width: 100%;
+    }
+
+    .filter-select {
+        width: 150px;
+    }
+
+    .filter-date {
+        width: 138px;
+    }
+
+    .dashboard-view-priority-row {
+        row-gap: 0.4rem;
+    }
+
+    .view-filter-wrap,
+    .quick-priority-wrap {
+        min-height: 32px;
+    }
+
+    @media (min-width: 992px) {
+        .quick-priority-wrap {
+            margin-left: auto;
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        .filter-toolbar-form {
+            min-width: 100%;
+        }
+
+        .dashboard-view-priority-row {
+            justify-content: flex-start !important;
+        }
+
+        .filter-search-wrap,
+        .filter-select,
+        .filter-date,
+        .filter-reset-btn {
+            width: 100%;
+        }
+    }
+
+    .requests-table tbody tr.row-priority-critical td { background-color: rgba(220, 38, 38, 0.08); }
+    .requests-table tbody tr.row-priority-high td { background-color: rgba(253, 126, 20, 0.08); }
+    .requests-table tbody tr.row-priority-average td { background-color: rgba(245, 158, 11, 0.08); }
+    .requests-table tbody tr.row-priority-low td { background-color: rgba(22, 163, 74, 0.08); }
+
+    .priority-high-text {
+        color: #fd7e14;
+        font-weight: 600;
+    }
+
+    [data-theme="dark"] .requests-table tbody tr.row-priority-critical td { background-color: rgba(239, 68, 68, 0.2); }
+    [data-theme="dark"] .requests-table tbody tr.row-priority-high td { background-color: rgba(249, 115, 22, 0.2); }
+    [data-theme="dark"] .requests-table tbody tr.row-priority-average td { background-color: rgba(234, 179, 8, 0.2); }
+    [data-theme="dark"] .requests-table tbody tr.row-priority-low td { background-color: rgba(34, 197, 94, 0.16); }
+    [data-theme="dark"] .priority-high-text { color: #fb923c; }
+</style>
+
+<script>
+(function () {
+    function normalizeSort(value) {
+        if (value === 'score') {
+            return 'total_score';
+        }
+        if (value === 'date') {
+            return 'start_date';
+        }
+        if (value === 'status') {
+            return 'status';
+        }
+        if (value === 'assigned_lead') {
+            return 'assigned_lead';
+        }
+        if (value === 'requested_by') {
+            return 'requested_by';
+        }
+        return 'total_score';
+    }
+
+    var url = new URL(window.location.href);
+    var params = url.searchParams;
+    var changed = false;
+
+    if (!params.has('sort') || !params.get('sort')) {
+        var preferredSort = normalizeSort(localStorage.getItem('goec.defaultSort') || 'score');
+        params.set('sort', preferredSort);
+        changed = true;
+    }
+
+    if (!params.has('order') || !params.get('order')) {
+        params.set('order', 'desc');
+        changed = true;
+    }
+
+    if (changed) {
+        window.location.replace(url.pathname + '?' + params.toString());
+        return;
+    }
+
+    if (window.GOECPreferences && window.GOECPreferences.applyDateFormat) {
+        window.GOECPreferences.applyDateFormat();
+    }
+
+    if (localStorage.getItem('goec.autoRefresh') === 'true') {
+        window.setTimeout(function () {
+            window.location.reload();
+        }, 60000);
+    }
+
+    var filterForm = document.querySelector('.filter-toolbar-form');
+    var priorityFilterInput = document.getElementById('priorityFilterInput');
+    var searchInput = document.getElementById('q');
+    var autoSubmitFields = ['stakeholder_group', 'requested_by', 'assigned_lead', 'status', 'priorityFilterInput', 'start_date_from', 'start_date_to'];
+
+    autoSubmitFields.forEach(function (fieldId) {
+        var field = document.getElementById(fieldId);
+        if (!field) {
+            return;
+        }
+        field.addEventListener('change', function () {
+            if (filterForm) {
+                filterForm.submit();
+            }
+        });
+    });
+
+    if (searchInput) {
+        var searchDebounceTimer;
+        searchInput.addEventListener('input', function () {
+            window.clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = window.setTimeout(function () {
+                if (filterForm) {
+                    filterForm.submit();
+                }
+            }, 350);
+        });
+
+        searchInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (filterForm) {
+                    filterForm.submit();
+                }
+            }
+        });
+    }
+
+    var priorityFilterButtons = document.querySelectorAll('#quickPriorityFilters [data-priority]');
+
+    priorityFilterButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            var value = button.getAttribute('data-priority');
+            if (!priorityFilterInput || !filterForm) {
+                return;
+            }
+            if (value === 'all') {
+                priorityFilterInput.value = '';
+            } else if (value === 'critical') {
+                priorityFilterInput.value = 'Critical';
+            } else if (value === 'high') {
+                priorityFilterInput.value = 'High';
+            } else if (value === 'average') {
+                priorityFilterInput.value = 'Average';
+            } else if (value === 'low') {
+                priorityFilterInput.value = 'Low';
+            }
+            filterForm.submit();
+        });
+    });
+}());
+</script>
+{% endblock %}

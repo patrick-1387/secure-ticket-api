@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+    <div class="row g-4 g-lg-5 align-items-center login-shell">
+        <div class="col-12 col-lg-6 d-flex justify-content-center align-items-center">
+            <img src="{{ url_for('static', filename='goeclogo.png') }}" alt="GOEC logo" class="img-fluid login-logo">
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm login-card">
+                <div class="card-body p-4 p-lg-5">
+                    <h1 class="h3 mb-1">ATLAS</h1>
+                    <p class="text-muted small mb-4">Agentic Triage and Learning Action System</p>
+
+                    <form method="post" action="{{ url_for('login') }}" autocomplete="off">
+                        <div class="mb-3">
+                            <label class="form-label" for="username">Username</label>
+                            <input class="form-control" id="username" name="username" required autofocus autocomplete="off">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="password">Password</label>
+                            <input class="form-control" id="password" name="password" type="password" required autocomplete="off">
+                        </div>
+                        <div class="alert alert-info py-2 px-3 small mb-3" role="note" aria-label="UAT authentication notice">
+                            <span class="badge text-bg-secondary me-1">UAT Feature</span>
+                            This login method is currently provided for UAT testing purposes.
+                        </div>
+                        <button class="btn btn-primary w-100" type="submit">Login</button>
+                        <a class="btn btn-outline-secondary w-100 mt-2" href="{{ url_for('register') }}">Create Account</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-shell {
+        min-height: calc(100vh - 180px);
+    }
+
+    .login-logo {
+        max-width: min(100%, 440px);
+        max-height: 300px;
+        object-fit: contain;
+    }
+
+    .login-card {
+        max-width: 480px;
+        margin-inline: auto;
+    }
+
+    @media (max-width: 991.98px) {
+        .login-shell {
+            min-height: auto;
+        }
+
+        .login-logo {
+            max-width: min(100%, 360px);
+            max-height: 220px;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-12 col-sm-10 col-md-6 col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 mb-3">User Registration</h1>
+                <form method="post" action="{{ url_for('register') }}" class="d-grid gap-3" autocomplete="off">
+                    <div>
+                        <label class="form-label" for="username">Username</label>
+                        <input class="form-control" id="username" name="username" required autofocus autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label" for="password">Password</label>
+                        <input class="form-control" id="password" name="password" type="password" required autocomplete="off">
+                    </div>
+                    <div class="alert alert-info py-2 px-3 small mb-0" role="note" aria-label="UAT authentication notice">
+                        <span class="badge text-bg-secondary me-1">UAT Feature</span>
+                        This login method is currently provided for UAT testing purposes.
+                    </div>
+                    <div>
+                        <label class="form-label" for="role">Role</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="stakeholder" selected>Stakeholder</option>
+                            <option value="internal">Internal</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

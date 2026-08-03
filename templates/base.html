@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ATLAS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script>
+        (function () {
+            var savedTheme = localStorage.getItem('goec.theme') || 'light';
+            if (savedTheme !== 'dark' && savedTheme !== 'light') {
+                savedTheme = 'light';
+            }
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }());
+    </script>
+    <style>
+        :root {
+            --app-bg: #f4f6fa;
+            --app-text: #0f172a;
+            --surface-bg: #ffffff;
+            --surface-border: #e6eaf0;
+            --muted-text: #64748b;
+            --card-bg: #fbfcfe;
+            --card-border: #e5eaf1;
+            --table-head-bg: #f3f6fa;
+            --table-row-hover: #f8fbff;
+            --input-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --app-bg: #0b1220;
+            --app-text: #e5e7eb;
+            --surface-bg: #101a2d;
+            --surface-border: #22314d;
+            --muted-text: #94a3b8;
+            --card-bg: #0f172a;
+            --card-border: #22314d;
+            --table-head-bg: #162033;
+            --table-row-hover: #18243a;
+            --input-bg: #0f172a;
+        }
+
+        /* Shared app shell styling for all pages extending this base template. */
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            background: var(--app-bg);
+            color: var(--app-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+        }
+
+        .app-header {
+            --bs-navbar-padding-y: 0.28rem;
+            background: var(--surface-bg);
+            border-bottom: 1px solid var(--surface-border);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+
+        .card,
+        .modal-content,
+        .dropdown-menu {
+            background: var(--surface-bg);
+            border-color: var(--surface-border);
+            color: var(--app-text);
+        }
+
+        .text-muted,
+        .text-secondary {
+            color: var(--muted-text) !important;
+        }
+
+        .btn {
+            border-radius: 0.35rem;
+            font-size: 0.8rem;
+            padding: 0.28rem 0.62rem;
+        }
+
+        .btn.btn-sm {
+            border-radius: 0.32rem;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.52rem;
+        }
+
+        .header-brand-wrap {
+            min-width: 0;
+            max-width: min(46vw, 600px);
+        }
+
+        .brand-logo-placeholder {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+            flex-shrink: 0;
+        }
+
+        .header-brand {
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 0.98rem;
+            line-height: 1.15;
+            text-decoration: none;
+            display: inline-flex;
+            flex-direction: column;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .header-brand-title {
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .header-brand-subtitle {
+            font-size: 0.68rem;
+            color: #64748b;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        .header-brand:hover {
+            color: #0f172a;
+        }
+
+        .header-shell {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-collapse {
+            flex: 1 1 auto;
+        }
+
+        .navbar-toggler {
+            margin-left: auto;
+        }
+
+        .header-center-nav .nav-link {
+            color: #334155;
+            font-weight: 400;
+            font-size: 0.86rem;
+            padding: 0.4rem 0.55rem;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .header-center-nav .nav-link:hover {
+            color: #0f172a;
+        }
+
+        .header-center-nav .nav-link.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .header-actions {
+            gap: 0.35rem;
+            min-width: 0;
+        }
+
+        .account-dropdown .dropdown-toggle {
+            min-width: 88px;
+            white-space: nowrap;
+        }
+
+        .user-display {
+            max-width: 180px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .account-identity {
+            max-width: 220px;
+        }
+
+        .header-icon-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 0.35rem;
+            border: 1px solid #dbe1ea;
+            background: #f8fafc;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: all 0.15s ease;
+        }
+
+        .header-icon-btn i {
+            font-size: 0.82rem;
+            line-height: 1;
+        }
+
+        .header-icon-btn:hover {
+            background: #eef2f7;
+            color: #0f172a;
+            border-color: #cfd8e3;
+        }
+
+        .profile-placeholder {
+            width: 32px;
+            height: 32px;
+            border-radius: 0.35rem;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+
+        .profile-placeholder i {
+            font-size: 0.84rem;
+            line-height: 1;
+        }
+
+        .profile-placeholder:hover {
+            background: #f8fafc;
+            color: #334155;
+        }
+
+        .form-control,
+        .form-select {
+            background-color: var(--input-bg);
+            color: var(--app-text);
+            border-color: var(--surface-border);
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background-color: var(--input-bg);
+            color: var(--app-text);
+        }
+
+        .table {
+            color: var(--app-text);
+        }
+
+        .atlas-footer {
+            margin-top: auto;
+            border-top: 1px solid var(--surface-border);
+            background: var(--surface-bg);
+            padding: 0.5rem 1rem;
+        }
+
+        .atlas-footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .atlas-footer-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: 0;
+        }
+
+        .atlas-footer-right {
+            text-align: right;
+            min-width: 0;
+        }
+
+        .atlas-footer-logo {
+            height: 30px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .atlas-footer-org {
+            font-size: 0.73rem;
+            color: var(--muted-text);
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .atlas-footer-tagline {
+            font-size: 0.67rem;
+            color: var(--muted-text);
+            line-height: 1.2;
+            max-width: 430px;
+        }
+
+        .atlas-footer-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            color: var(--app-text);
+            line-height: 1.2;
+        }
+
+        @media (min-width: 992px) {
+            .header-shell {
+                position: relative;
+            }
+
+            .header-collapse {
+                display: flex !important;
+                align-items: center;
+                justify-content: flex-end;
+                min-width: 0;
+            }
+
+            .header-center-nav {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                margin: 0;
+                justify-content: center;
+                white-space: nowrap;
+            }
+
+            .header-actions {
+                margin-left: auto;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width: 991.98px) {
+            .header-brand {
+                max-width: calc(100vw - 130px);
+            }
+
+            .header-shell {
+                flex-wrap: wrap;
+            }
+
+            .header-collapse {
+                flex-basis: 100%;
+            }
+
+            .header-center-nav {
+                margin-top: 0.75rem;
+                position: static;
+                transform: none;
+            }
+
+            .header-center-nav .nav-link {
+                border-bottom: none;
+                border-left: 3px solid transparent;
+                padding-left: 0.75rem;
+            }
+
+            .header-center-nav .nav-link.active {
+                border-left-color: #2563eb;
+                border-bottom-color: transparent;
+                background: #eff6ff;
+            }
+
+            .header-actions {
+                margin-top: 0.75rem;
+                flex-wrap: wrap;
+            }
+
+            .atlas-footer-inner {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.45rem;
+            }
+
+            .atlas-footer-right {
+                text-align: left;
+            }
+
+            .atlas-footer-tagline {
+                max-width: none;
+            }
+        }
+
+        .summary-card {
+            border: 1px solid var(--card-border);
+            border-top: 3px solid transparent;
+            border-radius: 0.65rem;
+            background: var(--card-bg);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+        }
+
+        .summary-card .card-body {
+            padding: 0.65rem 0.8rem;
+            min-height: 84px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: left;
+        }
+
+        .summary-card:hover {
+            border-color: #d9e2ec;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.07);
+        }
+
+        .card-purple  { border-top-color: #7c3aed; }
+        .card-green   { border-top-color: #16a34a; }
+        .card-blue    { border-top-color: #2563eb; }
+        .card-avg-low { border-top-color: #16a34a; }
+        .card-avg-average { border-top-color: #eab308; }
+        .card-avg-high { border-top-color: #fd7e14; }
+        .card-avg-critical { border-top-color: #dc2626; }
+
+        .bg-orange {
+            background-color: #fd7e14;
+            color: white;
+        }
+
+        .summary-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+            margin-bottom: 0.2rem;
+        }
+
+        .summary-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            line-height: 1.1;
+            color: #0f172a;
+        }
+
+        .filter-toolbar {
+            border: 1px solid var(--card-border);
+            border-radius: 0.65rem;
+            background: var(--card-bg);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+            padding: 0.35rem 0.45rem;
+        }
+
+        .filter-toolbar-scroll {
+            overflow: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-toolbar-form {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .filter-toolbar .form-control,
+        .filter-toolbar .form-select,
+        .filter-toolbar .btn {
+            height: 30px;
+            font-size: 0.76rem;
+            border-radius: 0.45rem;
+        }
+
+        .filter-toolbar .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            padding-inline: 0.65rem;
+        }
+
+        .filter-toolbar .form-control,
+        .filter-toolbar .form-select {
+            border-color: #d6deea;
+        }
+
+        .filter-toolbar .form-control:focus,
+        .filter-toolbar .form-select:focus {
+            border-color: #9ab8f5;
+            box-shadow: 0 0 0 0.12rem rgba(37, 99, 235, 0.16);
+        }
+
+        .filter-search {
+            min-width: 240px;
+            width: min(100%, 360px);
+        }
+
+        .filter-control-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+
+        .filter-input-icon {
+            position: absolute;
+            left: 0.55rem;
+            color: #8b97a8;
+            font-size: 0.74rem;
+            line-height: 1;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .filter-control-wrap .form-control,
+        .filter-control-wrap .form-select {
+            padding-left: 1.75rem;
+        }
+
+        .filter-select {
+            min-width: 150px;
+            width: min(100%, 190px);
+        }
+
+        .date-range-wrap .form-control {
+            min-width: 145px;
+        }
+
+        @media (max-width: 991.98px) {
+            .filter-toolbar-form {
+                justify-content: stretch;
+                align-items: stretch;
+            }
+
+            .filter-control-wrap,
+            .date-range-wrap,
+            .filter-toolbar .btn {
+                width: 100%;
+            }
+
+            .filter-control-wrap .form-control,
+            .filter-control-wrap .form-select,
+            .date-range-wrap .form-control {
+                width: 100%;
+            }
+
+            .date-range-wrap {
+                display: grid !important;
+                grid-template-columns: 1fr auto 1fr;
+            }
+        }
+
+        .date-range-separator {
+            font-size: 0.72rem;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .request-table-wrap {
+            border: 1px solid var(--card-border);
+            border-radius: 0.65rem;
+        }
+
+        .requests-table {
+            font-size: 0.8rem;
+            color: #4b5563;
+        }
+
+        .requests-table thead th {
+            white-space: nowrap;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6b7280;
+            background: var(--table-head-bg);
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.45rem 0.55rem;
+        }
+
+        .requests-table tbody td {
+            padding: 0.42rem 0.55rem;
+            border-bottom: 1px solid #edf1f6;
+            color: #475569;
+            vertical-align: middle;
+        }
+
+        .requests-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .requests-table tbody tr:hover {
+            background-color: var(--table-row-hover);
+        }
+
+        [data-theme="dark"] .header-brand,
+        [data-theme="dark"] .header-center-nav .nav-link,
+        [data-theme="dark"] .summary-value,
+        [data-theme="dark"] .summary-label,
+        [data-theme="dark"] .requests-table tbody td,
+        [data-theme="dark"] .requests-table thead th,
+        [data-theme="dark"] .sort-link,
+        [data-theme="dark"] .date-range-separator {
+            color: #dbe4f0;
+        }
+
+        [data-theme="dark"] .header-brand-subtitle {
+            color: #9fb0c9;
+        }
+
+        [data-theme="dark"] .header-center-nav .nav-link:hover {
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .header-center-nav .nav-link.active {
+            color: #7fb0ff;
+            border-bottom-color: #7fb0ff;
+        }
+
+        [data-theme="dark"] .navbar-toggler {
+            border-color: #2a3c5f;
+            background: #111c30;
+        }
+
+        [data-theme="dark"] .navbar-toggler-icon {
+            filter: invert(1) brightness(1.2);
+        }
+
+        [data-theme="dark"] .profile-placeholder,
+        [data-theme="dark"] .header-icon-btn {
+            background: #111c30;
+            border-color: #2a3c5f;
+            color: #dbe4f0;
+        }
+
+        [data-theme="dark"] .account-dropdown .dropdown-menu {
+            background: #111c30;
+            border-color: #2a3c5f;
+        }
+
+        [data-theme="dark"] .account-dropdown .dropdown-item,
+        [data-theme="dark"] .account-dropdown .dropdown-header {
+            color: #dbe4f0;
+        }
+
+        [data-theme="dark"] .account-dropdown .dropdown-item:hover,
+        [data-theme="dark"] .account-dropdown .dropdown-item:focus {
+            background: #1b2b44;
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .summary-card:hover,
+        [data-theme="dark"] .request-table-wrap,
+        [data-theme="dark"] .filter-toolbar {
+            border-color: #2a3c5f;
+        }
+
+        [data-theme="dark"] .filter-input-icon {
+            color: #a8b5c8;
+        }
+
+        [data-theme="dark"] .filter-toolbar .form-control,
+        [data-theme="dark"] .filter-toolbar .form-select {
+            border-color: #2a3c5f;
+            background: #0f172a;
+            color: #dbe4f0;
+        }
+
+        [data-theme="dark"] .filter-toolbar .form-control::placeholder {
+            color: #94a3b8;
+            opacity: 1;
+        }
+
+        [data-theme="dark"] .requests-table tbody tr td {
+            border-bottom-color: #24344f;
+            color: #c6d1e2;
+        }
+
+        [data-theme="dark"] .table,
+        [data-theme="dark"] .card,
+        [data-theme="dark"] .alert {
+            --bs-card-color: #e5e7eb;
+            --bs-table-color: #e5e7eb;
+            --bs-alert-color: #e5e7eb;
+            --bs-card-bg: var(--surface-bg);
+            --bs-card-border-color: var(--surface-border);
+            --bs-body-bg: var(--app-bg);
+            --bs-body-color: var(--app-text);
+        }
+
+        [data-theme="dark"] .table-light,
+        [data-theme="dark"] .table > :not(caption) > * > * {
+            color: #dbe4f0;
+        }
+
+        [data-theme="dark"] .table-light > tr > th,
+        [data-theme="dark"] .table-light > tr > td,
+        [data-theme="dark"] .table-light > th,
+        [data-theme="dark"] .table-light > td {
+            background-color: #162033 !important;
+            border-color: #2a3c5f !important;
+        }
+
+        [data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: #132036;
+        }
+
+        [data-theme="dark"] .table-striped > tbody > tr:nth-of-type(even) > * {
+            background-color: #0f1a2f;
+        }
+
+        [data-theme="dark"] .form-control::placeholder,
+        [data-theme="dark"] textarea::placeholder {
+            color: #94a3b8;
+            opacity: 1;
+        }
+
+        [data-theme="dark"] .card-header.bg-dark {
+            background-color: #182338 !important;
+            border-bottom: 1px solid #2a3c5f;
+        }
+
+        [data-theme="dark"] .alert {
+            border-color: #2a3c5f;
+        }
+
+        [data-theme="dark"] .alert-success {
+            background-color: #123724;
+            color: #d1fae5;
+            border-color: #1f6b45;
+        }
+
+        [data-theme="dark"] .alert-danger {
+            background-color: #3b151a;
+            color: #fee2e2;
+            border-color: #7f1d1d;
+        }
+
+        [data-theme="dark"] .alert-warning {
+            background-color: #3e2c10;
+            color: #fef3c7;
+            border-color: #8a5d13;
+        }
+
+        [data-theme="dark"] .alert-info {
+            background-color: #102b3a;
+            color: #dbeafe;
+            border-color: #1d4f6b;
+        }
+
+        [data-theme="dark"] .alert .btn-close {
+            filter: invert(1);
+        }
+
+        [data-theme="dark"] .alert-link {
+            color: #bfdbfe;
+        }
+
+        [data-theme="dark"] .bg-light.text-dark {
+            background-color: #22314d !important;
+            color: #e2e8f0 !important;
+            border-color: #334967 !important;
+        }
+
+        [data-theme="dark"] .toast,
+        [data-theme="dark"] .toast-header {
+            background-color: #111c30;
+            color: #dbe4f0;
+            border-color: #2a3c5f;
+        }
+
+        [data-theme="dark"] .atlas-footer {
+            background: #0f1a2f;
+            border-top-color: #2a3c5f;
+        }
+
+        .sort-link {
+            color: inherit;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .sort-link:hover {
+            color: #334155;
+        }
+
+        [data-theme="dark"] .sort-link:hover {
+            color: #f1f5f9;
+        }
+
+        .sort-link.active {
+            color: #1d4ed8;
+        }
+
+        .sort-indicator {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            line-height: 1;
+        }
+
+        .sort-link.active .sort-indicator {
+            color: #2563eb;
+        }
+
+        .status-badge,
+        .score-badge {
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 0.2rem 0.4rem;
+        }
+
+        .badge-status-new        { background-color: #2563eb; color: #fff; }
+        .badge-status-inprogress { background-color: #d97706; color: #fff; }
+        .badge-status-l3l4       { background-color: #7c3aed; color: #fff; }
+        .badge-status-completed  { background-color: #16a34a; color: #fff; }
+        .badge-status-onhold     { background-color: #6b7280; color: #fff; }
+        .badge-status-deferred   { background-color: #0ea5a4; color: #fff; }
+
+        @media (max-width: 991.98px) {
+            [data-theme="dark"] .header-center-nav .nav-link.active {
+                background: #1b2b44;
+                border-left-color: #7fb0ff;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg app-header mb-3">
+        <div class="container-fluid px-4">
+            <div class="header-shell">
+                <div class="d-flex align-items-center gap-2 header-brand-wrap">
+                    <span class="brand-logo-placeholder" aria-hidden="true"></span>
+                    <a class="header-brand" href="{{ url_for('dashboard') }}">
+                        <span class="header-brand-title">ATLAS</span>
+                        <span class="header-brand-subtitle">Agentic Triage and Learning Action System</span>
+                    </a>
+                </div>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse header-collapse" id="mainNav">
+                    <ul class="navbar-nav flex-lg-row header-center-nav gap-lg-2">
+                        {% if current_user.is_authenticated %}
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'calendar_view' else '' }}" href="{{ url_for('calendar_view') }}">Calendar</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'insights' else '' }}" href="{{ url_for('insights') }}">Insights</a>
+                            </li>
+                            {% if current_user.role == 'admin' %}
+                                <li class="nav-item">
+                                    <a class="nav-link {{ 'active' if request.endpoint in ['users', 'edit_user', 'change_password'] else '' }}" href="{{ url_for('users') }}">User</a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+                    <div class="d-flex align-items-center header-actions">
+                        {% if current_user.is_authenticated %}
+                            <a class="btn btn-sm btn-primary" href="{{ url_for('new_request') }}">New Request</a>
+                            <a class="header-icon-btn" href="{{ download_url }}" aria-label="Download CSV" title="Download CSV">
+                                <i class="bi bi-download" aria-hidden="true"></i>
+                            </a>
+                            <a class="header-icon-btn" href="#" role="button" aria-label="Notifications (WIP)" title="Notifications (WIP)">
+                                <i class="bi bi-bell"></i>
+                            </a>
+                            <a class="header-icon-btn {{ 'active' if request.endpoint == 'guide' else '' }}" href="{{ url_for('guide') }}" role="button" aria-label="Help guide" title="Scoring Rubric Guidance">
+                                <i class="bi bi-question-circle"></i>
+                            </a>
+                            <div class="dropdown account-dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                                    Account
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li class="px-3 py-2 account-identity">
+                                        <div
+                                            class="small fw-semibold user-display"
+                                            title="{{ current_user.username }}"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-placement="left"
+                                        >{{ current_user.username }}</div>
+                                        <div class="small text-muted text-capitalize">{{ current_user.role }}</div>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <a class="dropdown-item small" href="{{ url_for('settings') }}">
+                                            <i class="bi bi-gear me-2" aria-hidden="true"></i>Settings
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item small text-danger" href="{{ url_for('logout') }}">
+                                            <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Logout
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% else %}
+                            <a class="btn btn-sm btn-primary" href="{{ url_for('login') }}">Login</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('register') }}">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid px-4 pb-3 flex-grow-1">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {# Flask uses "error" while Bootstrap expects "danger". #}
+                    {% set alert_type = 'danger' if category == 'error' else category %}
+                    <div class="alert alert-{{ alert_type }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="atlas-footer" role="contentinfo" aria-label="ATLAS branding footer">
+        <div class="atlas-footer-inner">
+            <div class="atlas-footer-left">
+                <img class="atlas-footer-logo" src="{{ url_for('static', filename='goeclogo.png') }}" alt="GOEC logo">
+                <div class="atlas-footer-org">Global Operations Enablement Center</div>
+            </div>
+            <div class="atlas-footer-right">
+                <div class="atlas-footer-title">ATLAS</div>
+                <div class="atlas-footer-tagline">Your AI concierge for enablement requests, from intake to prioritization and action.</div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            function getSetting(key, fallback) {
+                var value = localStorage.getItem(key);
+                return value === null ? fallback : value;
+            }
+
+            function formatIsoDate(isoDate, format) {
+                if (!isoDate) {
+                    return '';
+                }
+                var date = new Date(isoDate + 'T00:00:00');
+                if (Number.isNaN(date.getTime())) {
+                    return isoDate;
+                }
+                var yyyy = date.getFullYear();
+                var mm = String(date.getMonth() + 1).padStart(2, '0');
+                var dd = String(date.getDate()).padStart(2, '0');
+                if (format === 'MM/DD/YYYY') {
+                    return mm + '/' + dd + '/' + yyyy;
+                }
+                if (format === 'DD/MM/YYYY') {
+                    return dd + '/' + mm + '/' + yyyy;
+                }
+                return yyyy + '-' + mm + '-' + dd;
+            }
+
+            function applyDateFormat() {
+                var format = getSetting('goec.dateFormat', 'YYYY-MM-DD');
+                document.querySelectorAll('[data-iso-date]').forEach(function (node) {
+                    var raw = node.getAttribute('data-iso-date');
+                    node.textContent = raw ? formatIsoDate(raw, format) : '-';
+                });
+            }
+
+            window.GOECPreferences = {
+                get: getSetting,
+                set: function (key, value) { localStorage.setItem(key, value); },
+                applyTheme: function () {
+                    var theme = getSetting('goec.theme', 'light');
+                    if (theme !== 'dark' && theme !== 'light') {
+                        theme = 'light';
+                    }
+                    document.documentElement.setAttribute('data-theme', theme);
+                },
+                applyDateFormat: applyDateFormat
+            };
+
+            window.GOECPreferences.applyTheme();
+            applyDateFormat();
+
+            if (window.bootstrap && window.bootstrap.Tooltip) {
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                    new window.bootstrap.Tooltip(el);
+                });
+            }
+        }());
+    </script>
+</body>
+</html>

@@ -1,0 +1,785 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h4 mb-1">{{ page_title }}</h1>
+                <p class="text-muted small mb-0">ATLAS — Agentic Triage and Learning Action System; complete all sections before submitting</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                {% if intake_request %}
+                    {% if intake_request.reviewed %}
+                        <span class="badge bg-success">Reviewed</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Pending Review</span>
+                    {% endif %}
+                    {% if current_user.role in ['internal', 'admin'] %}
+                        {% if not intake_request.reviewed %}
+                            <form method="post" action="{{ url_for('mark_request_reviewed', id=intake_request.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-primary btn-sm">Mark as Reviewed</button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="{{ url_for('unmark_request_reviewed', id=intake_request.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">Unmark Review</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+            </div>
+        </div>
+
+        {# Reuse posted form values after validation errors; otherwise use DB values on edit. #}
+        {% set src = form_data if form_data else intake_request %}
+        {% set stakeholder_review_lock = intake_request and current_user.role == 'stakeholder' and intake_request.reviewed %}
+
+        <form method="post" id="intakeForm" data-can-edit-feasibility="{{ 'true' if can_edit_feasibility else 'false' }}">
+            {% if stakeholder_review_lock %}
+                <div class="alert alert-warning border-0 shadow-sm" role="alert">
+                    This request has been reviewed and is now read-only. You can no longer edit or delete it.
+                </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm mb-3" id="aiIntakePanel">
+                <div class="card-header py-2 px-4 d-flex justify-content-between align-items-center gap-2 flex-wrap ai-assistant-header">
+                    <span class="fw-semibold small text-uppercase">AI Intake Assistant (WIP)</span>
+                    <span class="badge text-bg-secondary">Draft Autofill</span>
+                </div>
+                <div class="card-body p-4">
+                    {% if not ai_intake_configured %}
+                        <div class="alert alert-warning py-2 px-3 small mb-3" role="status">
+                            <div class="fw-semibold mb-1">⚠️ Work in Progress (WIP)</div>
+                            <div>AI extraction has not yet been configured.</div>
+                            <div>Configure <strong>AI_INTAKE_PROVIDER</strong> and the required provider credentials to enable this feature.</div>
+                        </div>
+                        <div class="small text-muted ai-wip-note mb-3">
+                            This feature is planned to support voice input, transcript parsing, and AI-assisted request generation.
+                        </div>
+                    {% endif %}
+                    <p class="text-muted small mb-3">
+                        Speak into the microphone, paste a transcript, or type a natural-language request. AI will populate matching fields for your review.
+                    </p>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="aiMicToggle">
+                            <i class="bi bi-mic me-1" aria-hidden="true"></i>
+                            Start Mic
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" id="aiGenerateBtn">Extract & Autofill</button>
+                    </div>
+                    <textarea
+                        class="form-control"
+                        id="aiIntakeInput"
+                        rows="4"
+                        placeholder="Paste transcript or describe the request in natural language..."
+                    ></textarea>
+                    <div class="form-text">The form is never auto-submitted. You can edit all AI-generated values before saving.</div>
+                    <div id="aiIntakeAlert" class="alert alert-info py-2 px-3 small mt-3 d-none" role="status"></div>
+                    <div id="aiSummaryPanel" class="ai-summary-panel mt-3 d-none" aria-live="polite">
+                        <div class="fw-semibold small mb-2">AI extraction summary</div>
+                        <div class="small mb-1">AI extracted:</div>
+                        <ul class="small mb-2" id="aiExtractedList"></ul>
+                        <div class="small mb-1">Missing:</div>
+                        <ul class="small mb-0" id="aiMissingList"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Section 1: Request Details ── -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white py-2 px-4">
+                    <span class="fw-semibold small text-uppercase">1 · Request Details</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="request_number">Request Number <span class="text-danger">*</span></label>
+                            {% if intake_request %}
+                                <input class="form-control" id="request_number" name="request_number" type="number" required value="{{ src.request_number if src else '' }}">
+                            {% else %}
+                                <input class="form-control" id="request_number" type="text" value="{{ auto_request_number if auto_request_number is defined else 'Auto' }}" readonly aria-readonly="true">
+                                <div class="form-text">Automatically assigned when the request is saved.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="project_name">Project Name <span class="text-danger">*</span></label>
+                            <input class="form-control" id="project_name" name="project_name" required value="{{ src.project_name if src else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="assigned_lead">Assigned Lead <span class="text-danger">*</span></label>
+                            {% if can_assign_lead %}
+                                <select class="form-select" id="assigned_lead" name="assigned_lead" required>
+                                    <option value="">Choose...</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.username }}" {% if src and src.assigned_lead == user.username %}selected{% endif %}>{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                <input class="form-control role-locked-field" id="assigned_lead" name="assigned_lead" value="{{ src.assigned_lead if src and src.assigned_lead else 'Assigned by internal team' }}" readonly>
+                                <div class="form-text">Assigned by internal team</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="start_date">Start Date <span class="text-danger">*</span></label>
+                            <input class="form-control" id="start_date" name="start_date" type="date" required value="{{ src.start_date if src and src.start_date else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="requested_by">Requested By <span class="text-danger">*</span></label>
+                            {% if can_select_requested_by %}
+                                <select class="form-select" id="requested_by" name="requested_by" required>
+                                    <option value="">Choose...</option>
+                                    {% for user in users %}
+                                        {% set selected_requested_by = src.requested_by if src and src.requested_by else default_requested_by %}
+                                        <option value="{{ user.username }}" {% if selected_requested_by == user.username %}selected{% endif %}>{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                <select class="form-select" id="requested_by" name="requested_by" required>
+                                    <option value="{{ default_requested_by }}" selected>{{ default_requested_by }}</option>
+                                </select>
+                                <div class="form-text">You can only submit requests as yourself.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="stakeholder_group">Stakeholder Group <span class="text-danger">*</span></label>
+                            <select class="form-select" id="stakeholder_group" name="stakeholder_group" required>
+                                <option value="">Choose...</option>
+                                {% for option in stakeholder_group_options %}
+                                    <option value="{{ option }}" {% if src and src.stakeholder_group == option %}selected{% endif %}>{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="status">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="status" name="status" required>
+                                {% for option in status_options %}
+                                    <option
+                                        value="{{ option }}"
+                                        {% if intake_request and intake_request.reviewed and option == 'New' %}disabled{% endif %}
+                                        {% if src and normalize_status(src.status) == option %}selected{% elif not src and option == 'New' %}selected{% endif %}
+                                    >{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if intake_request and intake_request.reviewed %}
+                                <div class="form-text">Reviewed requests remain In Progress until review is removed.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="description">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4">{{ src.description if src and src.description else '' }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="business_outcome">Business Outcome <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="business_outcome" name="business_outcome" rows="4" required placeholder="Describe the expected business outcome...">{{ src.business_outcome if src and src.business_outcome else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Section 2: Priority Rating ── -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white py-2 px-4 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <span class="fw-semibold small text-uppercase">2 · Priority Rating</span>
+                    <a class="link-light small text-decoration-underline" href="{{ url_for('guide') }}" target="_blank" rel="noopener noreferrer">View Scoring Guide</a>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-4">Rate each dimension from 0 (lowest) to 5 (highest). The total score determines intake priority.</p>
+                    <div class="row g-4">
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="score-card p-3 rounded border h-100">
+                                <label class="form-label fw-semibold mb-1" for="business_value">Business Value</label>
+                                <div class="d-flex justify-content-between text-muted mb-2" style="font-size:0.72rem;">
+                                    <span>0 = No business impact</span>
+                                    <span>5 = Very high enterprise impact</span>
+                                </div>
+                                <select class="form-select score-input" id="business_value" name="business_value">
+                                    {% for i in range(6) %}
+                                        <option value="{{ i }}" {% if src and src.business_value | int == i %}selected{% elif not src and i == 0 %}selected{% endif %}>{{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="form-label small fw-semibold mt-2 mb-1" for="business_value_rationale">Rationale</label>
+                                <input
+                                    class="form-control form-control-sm rationale-input"
+                                    id="business_value_rationale"
+                                    name="business_value_rationale"
+                                    required
+                                    placeholder="Explain the score..."
+                                    value="{{ src.business_value_rationale if src and src.business_value_rationale else '' }}"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="score-card p-3 rounded border h-100">
+                                <label class="form-label fw-semibold mb-1" for="reach">Reach</label>
+                                <div class="d-flex justify-content-between text-muted mb-2" style="font-size:0.72rem;">
+                                    <span>0 = One individual</span>
+                                    <span>5 = Enterprise-wide (1000+)</span>
+                                </div>
+                                <select class="form-select score-input" id="reach" name="reach">
+                                    {% for i in range(6) %}
+                                        <option value="{{ i }}" {% if src and src.reach | int == i %}selected{% elif not src and i == 0 %}selected{% endif %}>{{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="form-label small fw-semibold mt-2 mb-1" for="reach_rationale">Rationale</label>
+                                <input
+                                    class="form-control form-control-sm rationale-input"
+                                    id="reach_rationale"
+                                    name="reach_rationale"
+                                    required
+                                    placeholder="Explain the score..."
+                                    value="{{ src.reach_rationale if src and src.reach_rationale else '' }}"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="score-card p-3 rounded border h-100">
+                                <label class="form-label fw-semibold mb-1" for="reuse">Reuse</label>
+                                <div class="d-flex justify-content-between text-muted mb-2" style="font-size:0.72rem;">
+                                    <span>0 = One-off</span>
+                                    <span>5 = Reusable enterprise-wide</span>
+                                </div>
+                                <select class="form-select score-input" id="reuse" name="reuse">
+                                    {% for i in range(6) %}
+                                        <option value="{{ i }}" {% if src and src.reuse | int == i %}selected{% elif not src and i == 0 %}selected{% endif %}>{{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="form-label small fw-semibold mt-2 mb-1" for="reuse_rationale">Rationale</label>
+                                <input
+                                    class="form-control form-control-sm rationale-input"
+                                    id="reuse_rationale"
+                                    name="reuse_rationale"
+                                    required
+                                    placeholder="Explain the score..."
+                                    value="{{ src.reuse_rationale if src and src.reuse_rationale else '' }}"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="score-card p-3 rounded border h-100">
+                                <label class="form-label fw-semibold mb-1" for="risk_compliance">Risk / Compliance</label>
+                                <div class="d-flex justify-content-between text-muted mb-2" style="font-size:0.72rem;">
+                                    <span>0 = No risk relevance</span>
+                                    <span>5 = Mandatory for compliance</span>
+                                </div>
+                                <select class="form-select score-input" id="risk_compliance" name="risk_compliance">
+                                    {% for i in range(6) %}
+                                        <option value="{{ i }}" {% if src and src.risk_compliance | int == i %}selected{% elif not src and i == 0 %}selected{% endif %}>{{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="form-label small fw-semibold mt-2 mb-1" for="risk_compliance_rationale">Rationale</label>
+                                <input
+                                    class="form-control form-control-sm rationale-input"
+                                    id="risk_compliance_rationale"
+                                    name="risk_compliance_rationale"
+                                    required
+                                    placeholder="Explain the score..."
+                                    value="{{ src.risk_compliance_rationale if src and src.risk_compliance_rationale else '' }}"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="score-card p-3 rounded border h-100">
+                                <label class="form-label fw-semibold mb-1" for="feasibility">Feasibility <small class="text-muted fw-normal">(Internal Use)</small></label>
+                                <div class="d-flex justify-content-between text-muted mb-2" style="font-size:0.72rem;">
+                                    <span>0 = Not feasible</span>
+                                    <span>5 = Ready now, minimal effort</span>
+                                </div>
+                                <select class="form-select score-input {% if not can_edit_feasibility %}role-locked-field{% endif %}" id="feasibility" name="feasibility" {% if not can_edit_feasibility %}disabled{% endif %}>
+                                    {% for i in range(6) %}
+                                        <option value="{{ i }}" {% if ((form_data.get('feasibility', 0) if form_data else (src.feasibility if src and src.feasibility is defined else 0)) | int) == i %}selected{% endif %}>{{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if not can_edit_feasibility %}
+                                    <div class="form-text">Only internal and admin users can edit Feasibility.</div>
+                                {% endif %}
+                                <label class="form-label small fw-semibold mt-2 mb-1" for="feasibility_rationale">Rationale</label>
+                                <input
+                                    class="form-control form-control-sm rationale-input {% if not can_edit_feasibility %}role-locked-field{% endif %}"
+                                    id="feasibility_rationale"
+                                    name="feasibility_rationale"
+                                    {% if can_edit_feasibility %}required{% endif %}
+                                    placeholder="Explain the score..."
+                                    value="{{ src.feasibility_rationale if src and src.feasibility_rationale else '' }}"
+                                    {% if not can_edit_feasibility %}readonly{% endif %}
+                                >
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Score Summary -->
+                    <div class="mt-4 p-3 rounded border d-flex align-items-center gap-4" id="scoreSummaryBox">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-semibold">Total Score</div>
+                            <div class="fs-2 fw-bold" id="totalScoreDisplay">0</div>
+                            <div class="text-muted small">out of 25</div>
+                        </div>
+                        <div class="vr mx-2"></div>
+                        <div>
+                            <div class="text-muted small text-uppercase fw-semibold mb-1">Priority</div>
+                            <span class="badge fs-6 px-3 py-2" id="priorityBadge">Low</span>
+                        </div>
+                        <div class="ms-3 text-muted small">
+                            <div>0–10 = <strong class="text-success">Low</strong> - Do not prioritize unless required for compliance or strategic reasons.</div>
+                            <div>11–16 = <strong class="text-warning">Average</strong> - Low priority or needs refinement.</div>
+                            <div>17–21 = <strong class="priority-high-text">High</strong> - Worth considering; may be a good pilot or backlog candidate.</div>
+                            <div>22–25 = <strong class="text-danger">Critical</strong> - High priority; strong candidate for investment and execution.</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 mb-5">
+                {% if not stakeholder_review_lock %}
+                <button type="submit" class="btn btn-primary btn-sm">
+                    Save Request
+                </button>
+                {% endif %}
+
+                {% if intake_request and intake_request.id and ((intake_request.requested_by == current_user.username and not intake_request.reviewed) or current_user.role == 'admin') %}
+                    <button
+                        type="submit"
+                        class="btn btn-danger btn-sm"
+                        formaction="{{ url_for('delete_request', id=intake_request.id) }}"
+                        formmethod="post"
+                        formnovalidate
+                        onclick="return confirm('Are you sure you want to delete this request?')"
+                    >
+                        Delete
+                    </button>
+                {% endif %}
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script id="priority-levels-data" type="application/json">{{ priority_levels | tojson }}</script>
+
+<script>
+(function () {
+    var form = document.getElementById('intakeForm');
+    var inputs = document.querySelectorAll('.score-input');
+    var rationaleInputs = document.querySelectorAll('.rationale-input');
+    var canEditFeasibility = form && form.dataset.canEditFeasibility === 'true';
+    var totalDisplay = document.getElementById('totalScoreDisplay');
+    var badge = document.getElementById('priorityBadge');
+    var priorityLevelsEl = document.getElementById('priority-levels-data');
+    var priorityLevels = priorityLevelsEl ? JSON.parse(priorityLevelsEl.textContent) : [];
+    var aiMicToggle = document.getElementById('aiMicToggle');
+    var aiGenerateBtn = document.getElementById('aiGenerateBtn');
+    var aiIntakeInput = document.getElementById('aiIntakeInput');
+    var aiIntakeAlert = document.getElementById('aiIntakeAlert');
+    var aiSummaryPanel = document.getElementById('aiSummaryPanel');
+    var aiExtractedList = document.getElementById('aiExtractedList');
+    var aiMissingList = document.getElementById('aiMissingList');
+
+    var aiFieldLabels = {
+        project_name: 'Project Name',
+        description: 'Description',
+        business_outcome: 'Business Outcome',
+        stakeholder_group: 'Stakeholder Group',
+        requested_by: 'Requested By',
+        assigned_lead: 'Assigned Lead',
+        start_date: 'Start Date',
+        status: 'Status',
+        business_value: 'Business Value',
+        business_value_rationale: 'Business Value Rationale',
+        reach: 'Reach',
+        reach_rationale: 'Reach Rationale',
+        feasibility: 'Feasibility',
+        feasibility_rationale: 'Feasibility Rationale',
+        reuse: 'Reuse',
+        reuse_rationale: 'Reuse Rationale',
+        risk_compliance: 'Risk / Compliance',
+        risk_compliance_rationale: 'Risk / Compliance Rationale'
+    };
+
+    var scoreFields = {
+        business_value: true,
+        reach: true,
+        feasibility: true,
+        reuse: true,
+        risk_compliance: true
+    };
+
+    var speechRecognition = null;
+    var isListening = false;
+
+    function update() {
+        var total = 0;
+        inputs.forEach(function (s) { total += parseInt(s.value, 10) || 0; });
+        totalDisplay.textContent = total;
+
+        var matched = priorityLevels.find(function (level) {
+            return total >= level.min_score;
+        }) || { label: 'Low', badge_class: 'bg-success' };
+        badge.textContent = matched.label;
+        badge.className = 'badge fs-6 px-3 py-2 ' + matched.badge_class;
+    }
+
+    function showAIAlert(message, level) {
+        if (!aiIntakeAlert) {
+            return;
+        }
+        aiIntakeAlert.className = 'alert py-2 px-3 small mt-3';
+        aiIntakeAlert.classList.add('alert-' + (level || 'info'));
+        aiIntakeAlert.textContent = message;
+        aiIntakeAlert.classList.remove('d-none');
+    }
+
+    function clearAIAlert() {
+        if (!aiIntakeAlert) {
+            return;
+        }
+        aiIntakeAlert.classList.add('d-none');
+        aiIntakeAlert.textContent = '';
+    }
+
+    function renderSummary(extractedFields, missingFields) {
+        if (!aiSummaryPanel || !aiExtractedList || !aiMissingList) {
+            return;
+        }
+        aiExtractedList.innerHTML = '';
+        aiMissingList.innerHTML = '';
+
+        extractedFields.forEach(function (field) {
+            var li = document.createElement('li');
+            li.textContent = '\u2713 ' + (aiFieldLabels[field] || field);
+            aiExtractedList.appendChild(li);
+        });
+
+        missingFields.forEach(function (field) {
+            var li = document.createElement('li');
+            li.textContent = '- ' + (aiFieldLabels[field] || field);
+            aiMissingList.appendChild(li);
+        });
+
+        if (!extractedFields.length) {
+            var none = document.createElement('li');
+            none.textContent = '- No fields extracted';
+            aiExtractedList.appendChild(none);
+        }
+
+        if (!missingFields.length) {
+            var complete = document.createElement('li');
+            complete.textContent = '- None';
+            aiMissingList.appendChild(complete);
+        }
+
+        aiSummaryPanel.classList.remove('d-none');
+    }
+
+    function markAIGenerated(el, isScore) {
+        el.classList.remove('ai-generated-field', 'ai-generated-score');
+        if (isScore) {
+            el.classList.add('ai-generated-score');
+        } else {
+            el.classList.add('ai-generated-field');
+        }
+    }
+
+    function applySelectValue(selectEl, rawValue) {
+        var value = (rawValue || '').trim();
+        if (!value) {
+            return false;
+        }
+
+        var normalized = value.toLowerCase();
+        var matchedOption = Array.prototype.find.call(selectEl.options, function (opt) {
+            return String(opt.value || '').toLowerCase() === normalized
+                || String(opt.text || '').toLowerCase() === normalized;
+        });
+
+        if (!matchedOption) {
+            return false;
+        }
+
+        selectEl.value = matchedOption.value;
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }
+
+    function applyAIData(data) {
+        var appliedFields = [];
+        Object.keys(aiFieldLabels).forEach(function (fieldName) {
+            if (!Object.prototype.hasOwnProperty.call(data, fieldName)) {
+                return;
+            }
+
+            var rawValue = data[fieldName];
+            var value = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
+            if (!value) {
+                return;
+            }
+
+            var el = document.getElementById(fieldName);
+            if (!el || el.disabled || el.readOnly) {
+                return;
+            }
+
+            var applied = false;
+            if (el.tagName === 'SELECT') {
+                applied = applySelectValue(el, value);
+            } else {
+                el.value = value;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                if (el.classList.contains('score-input')) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                applied = true;
+            }
+
+            if (applied) {
+                markAIGenerated(el, !!scoreFields[fieldName]);
+                appliedFields.push(fieldName);
+            }
+        });
+
+        update();
+        return appliedFields;
+    }
+
+    function startListening() {
+        var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Recognition) {
+            showAIAlert('Microphone transcription is not supported in this browser. Paste or type text instead.', 'warning');
+            return;
+        }
+
+        speechRecognition = new Recognition();
+        speechRecognition.lang = 'en-US';
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = false;
+
+        speechRecognition.onresult = function (event) {
+            var transcript = '';
+            for (var i = event.resultIndex; i < event.results.length; i += 1) {
+                transcript += event.results[i][0].transcript + ' ';
+            }
+            if (aiIntakeInput) {
+                aiIntakeInput.value = (aiIntakeInput.value + ' ' + transcript).trim();
+            }
+        };
+
+        speechRecognition.onerror = function () {
+            showAIAlert('Microphone capture failed. You can still paste or type the request.', 'warning');
+        };
+
+        speechRecognition.onend = function () {
+            isListening = false;
+            if (aiMicToggle) {
+                aiMicToggle.innerHTML = '<i class="bi bi-mic me-1" aria-hidden="true"></i>Start Mic';
+            }
+        };
+
+        speechRecognition.start();
+        isListening = true;
+        if (aiMicToggle) {
+            aiMicToggle.innerHTML = '<i class="bi bi-mic-mute me-1" aria-hidden="true"></i>Stop Mic';
+        }
+        clearAIAlert();
+    }
+
+    function stopListening() {
+        if (speechRecognition && isListening) {
+            speechRecognition.stop();
+        }
+        isListening = false;
+        if (aiMicToggle) {
+            aiMicToggle.innerHTML = '<i class="bi bi-mic me-1" aria-hidden="true"></i>Start Mic';
+        }
+    }
+
+    function runAIExtraction() {
+        var sourceText = aiIntakeInput ? aiIntakeInput.value.trim() : '';
+        if (!sourceText) {
+            showAIAlert('Please provide audio transcript or request text before extraction.', 'warning');
+            return;
+        }
+
+        clearAIAlert();
+        aiGenerateBtn.disabled = true;
+        aiGenerateBtn.textContent = 'Extracting...';
+
+        fetch('{{ url_for("ai_extract_intake_request") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text: sourceText })
+        })
+            .then(function (response) {
+                return response.json().then(function (payload) {
+                    return { ok: response.ok, payload: payload };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok || !result.payload.ok) {
+                    showAIAlert(result.payload.message || 'AI extraction failed. Please try again.', 'warning');
+                    return;
+                }
+
+                var data = result.payload.data || {};
+                var appliedFields = applyAIData(data);
+                renderSummary(result.payload.extracted_fields || appliedFields, result.payload.missing_fields || []);
+
+                if (result.payload.message) {
+                    showAIAlert(result.payload.message, 'info');
+                } else {
+                    showAIAlert('AI extraction complete. Review highlighted fields before saving.', 'success');
+                }
+            })
+            .catch(function () {
+                showAIAlert('AI extraction failed. Please try again.', 'warning');
+            })
+            .finally(function () {
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.textContent = 'Extract & Autofill';
+            });
+    }
+
+    inputs.forEach(function (s) { s.addEventListener('change', update); });
+    rationaleInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            if (input.value.trim()) {
+                input.setCustomValidity('');
+            }
+        });
+    });
+
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            var hasMissingRationale = false;
+            rationaleInputs.forEach(function (input) {
+                if (!canEditFeasibility && input.id === 'feasibility_rationale') {
+                    input.setCustomValidity('');
+                    return;
+                }
+                if (!input.value.trim()) {
+                    input.setCustomValidity('Rationale is required.');
+                    if (!hasMissingRationale) {
+                        hasMissingRationale = true;
+                    }
+                } else {
+                    input.setCustomValidity('');
+                }
+            });
+
+            if (hasMissingRationale && !form.checkValidity()) {
+                event.preventDefault();
+                form.reportValidity();
+            }
+        });
+    }
+
+    if (aiMicToggle) {
+        aiMicToggle.addEventListener('click', function () {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        });
+    }
+
+    if (aiGenerateBtn) {
+        aiGenerateBtn.addEventListener('click', runAIExtraction);
+    }
+
+    update();
+}());
+</script>
+
+<style>
+    .ai-assistant-header {
+        background: #0f172a;
+        color: #ffffff;
+    }
+
+    .ai-summary-panel {
+        border: 1px solid #dbe5f1;
+        background: #f8fbff;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .ai-generated-field {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 0.12rem rgba(59, 130, 246, 0.15);
+        background: #eff6ff;
+    }
+
+    .ai-generated-score {
+        border-color: #f59e0b !important;
+        box-shadow: 0 0 0 0.12rem rgba(245, 158, 11, 0.18);
+        background: #fffbeb;
+    }
+
+    /* Small focus cue makes active scoring card easier to track while tabbing. */
+    .score-card { background: #f8fafc; transition: border-color 0.15s; }
+    .score-card:focus-within { border-color: #2563eb !important; background: #eff6ff; }
+    .role-locked-field { background-color: #e5e7eb !important; color: #6b7280; }
+    .priority-high-text { color: #fd7e14; }
+
+    [data-theme="dark"] .ai-assistant-header {
+        background: #111c30;
+        color: #dbe4f0;
+    }
+
+    [data-theme="dark"] .ai-summary-panel {
+        border-color: #2a3c5f;
+        background: #111c30;
+        color: #dbe4f0;
+    }
+
+    [data-theme="dark"] .ai-generated-field {
+        border-color: #7fb0ff !important;
+        box-shadow: 0 0 0 0.12rem rgba(127, 176, 255, 0.2);
+        background: #16233a;
+    }
+
+    [data-theme="dark"] .ai-generated-score {
+        border-color: #fbbf24 !important;
+        box-shadow: 0 0 0 0.12rem rgba(251, 191, 36, 0.2);
+        background: #2a2510;
+    }
+
+    [data-theme="dark"] .ai-wip-note {
+        color: #9fb0c9 !important;
+    }
+
+    [data-theme="dark"] .score-card {
+        background: #111c30;
+        border-color: #2a3c5f !important;
+    }
+
+    [data-theme="dark"] .score-card:focus-within {
+        border-color: #7fb0ff !important;
+        background: #16233a;
+    }
+
+    [data-theme="dark"] .role-locked-field {
+        background-color: #25334d !important;
+        color: #dbe4f0;
+        border-color: #334967;
+    }
+
+    [data-theme="dark"] #scoreSummaryBox {
+        background: #101a2d;
+        border-color: #2a3c5f !important;
+    }
+
+    [data-theme="dark"] .priority-high-text {
+        color: #fb923c;
+    }
+
+</style>
+{% endblock %}

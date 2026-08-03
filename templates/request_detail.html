@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <div>
+                <h1 class="h4 mb-1">Request Details</h1>
+                <p class="text-muted mb-0">Project {{ intake_request.project_name }}</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if intake_request.reviewed %}
+                    <span class="badge bg-success">Reviewed</span>
+                {% else %}
+                    <span class="badge bg-secondary">Pending Review</span>
+                {% endif %}
+                {% if current_user.role in ['internal', 'admin'] %}
+                    {% if not intake_request.reviewed %}
+                        <form method="post" action="{{ url_for('mark_request_reviewed', id=intake_request.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-primary">Mark as Reviewed</button>
+                        </form>
+                    {% else %}
+                        <form method="post" action="{{ url_for('unmark_request_reviewed', id=intake_request.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Unmark Review</button>
+                        </form>
+                    {% endif %}
+                {% endif %}
+                {% if (current_user.role == 'stakeholder' and intake_request.requested_by == current_user.username and not intake_request.reviewed) or current_user.role in ['internal', 'admin'] %}
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('edit_request', request_id=intake_request.id) }}">Edit</a>
+                {% endif %}
+                {% if current_user.role == 'admin' or (current_user.role == 'stakeholder' and intake_request.requested_by == current_user.username and not intake_request.reviewed) %}
+                    <form method="post" action="{{ url_for('delete_request', id=intake_request.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this request?')">Delete</button>
+                    </form>
+                {% endif %}
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-dark text-white py-2 px-4">
+                <span class="fw-semibold small text-uppercase">Request Summary</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-label">Request Number</div>
+                        <div class="detail-value">{{ intake_request.request_number }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Project Name</div>
+                        <div class="detail-value">{{ intake_request.project_name }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Status</div>
+                        {% set display_status = normalize_status(intake_request.status) %}
+                        {% if display_status == 'New' %}
+                            <span class="badge bg-primary">{{ display_status }}</span>
+                        {% elif display_status == 'In Progress' %}
+                            <span class="badge bg-warning text-dark">{{ display_status }}</span>
+                        {% elif display_status == 'Deferred' %}
+                            <span class="badge" style="background-color:#0ea5a4; color:#fff;">{{ display_status }}</span>
+                        {% elif display_status == 'Completed' %}
+                            <span class="badge bg-success">{{ display_status }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ display_status }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="detail-label">Assigned Lead</div>
+                        <div class="detail-value">{{ intake_request.assigned_lead }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Requested By</div>
+                        <div class="detail-value">{{ intake_request.requested_by }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Stakeholder Group</div>
+                        <div class="detail-value">{{ intake_request.stakeholder_group }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="detail-label">Start Date</div>
+                        <div class="detail-value" data-iso-date="{{ intake_request.start_date.strftime('%Y-%m-%d') if intake_request.start_date else '' }}">{{ intake_request.start_date.strftime('%Y-%m-%d') if intake_request.start_date else '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Created At</div>
+                        <div class="detail-value">{{ intake_request.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Completed At</div>
+                        <div class="detail-value">{{ intake_request.end_date.strftime('%Y-%m-%d %H:%M') if intake_request.end_date else '-' }}</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="detail-label">Description</div>
+                        <div class="detail-value detail-description">{{ intake_request.description if intake_request.description else 'No description provided.' }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-label">Business Outcome</div>
+                        <div class="detail-value detail-description">{{ intake_request.business_outcome if intake_request.business_outcome else 'No business outcome provided.' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-dark text-white py-2 px-4">
+                <span class="fw-semibold small text-uppercase">Priority Rating</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-label">Business Value</div>
+                        <div class="detail-value">{{ intake_request.business_value }}</div>
+                        <div class="detail-note">Rationale: {{ intake_request.business_value_rationale if intake_request.business_value_rationale else '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Reach</div>
+                        <div class="detail-value">{{ intake_request.reach }}</div>
+                        <div class="detail-note">Rationale: {{ intake_request.reach_rationale if intake_request.reach_rationale else '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Reuse</div>
+                        <div class="detail-value">{{ intake_request.reuse }}</div>
+                        <div class="detail-note">Rationale: {{ intake_request.reuse_rationale if intake_request.reuse_rationale else '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Risk / Compliance</div>
+                        <div class="detail-value">{{ intake_request.risk_compliance }}</div>
+                        <div class="detail-note">Rationale: {{ intake_request.risk_compliance_rationale if intake_request.risk_compliance_rationale else '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Feasibility</div>
+                        <div class="detail-value">{{ intake_request.feasibility }}</div>
+                        <div class="detail-note">Rationale: {{ intake_request.feasibility_rationale if intake_request.feasibility_rationale else '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-label">Total Score</div>
+                        <div>
+                            {% set score_priority = priority_meta_for_score(intake_request.total_score) %}
+                            <span class="badge fs-6 {{ score_priority.badge_class }}">{{ intake_request.total_score }}</span>
+                            <span class="small ms-1 {{ score_priority.text_class }} fw-semibold">{{ score_priority.label }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="detail-label">Priority</div>
+                        {% set label_priority = priority_meta_for_label(intake_request.priority) %}
+                        <span class="badge fs-6 {{ label_priority.badge_class }}">{{ label_priority.label }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .detail-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6b7280;
+        margin-bottom: 0.2rem;
+    }
+
+    .detail-value {
+        font-size: 0.98rem;
+        color: #111827;
+        font-weight: 600;
+    }
+
+    .detail-description {
+        font-weight: 500;
+        white-space: pre-wrap;
+    }
+
+    .detail-note {
+        font-size: 0.8rem;
+        color: #4b5563;
+        margin-top: 0.2rem;
+        line-height: 1.3;
+    }
+
+    .priority-high-text {
+        color: #fd7e14;
+        font-weight: 600;
+    }
+
+    [data-theme="dark"] .detail-label {
+        color: #9fb0c9;
+    }
+
+    [data-theme="dark"] .detail-value {
+        color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .detail-note {
+        color: #b7c4d7;
+    }
+
+    [data-theme="dark"] .priority-high-text {
+        color: #fb923c;
+    }
+</style>
+{% endblock %}
