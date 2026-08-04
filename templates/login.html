@@ -4,7 +4,10 @@
 <div class="container py-4 py-lg-5">
     <div class="row g-4 g-lg-5 align-items-center login-shell">
         <div class="col-12 col-lg-6 d-flex justify-content-center align-items-center">
-            <img src="{{ url_for('static', filename='goeclogo.png') }}" alt="GOEC logo" class="img-fluid login-logo">
+            <div class="text-center px-3">
+                <h1 class="h2 mb-2">Secure Ticket Management</h1>
+                <p class="text-muted mb-0">A neutral, open-source workspace for triage, review, and resolution.</p>
+            </div>
         </div>
 
         <div class="col-12 col-lg-6">
@@ -38,12 +41,6 @@
 <style>
     .login-shell {
         min-height: calc(100vh - 180px);
-    }
-
-    .login-logo {
-        max-width: min(100%, 440px);
-        max-height: 300px;
-        object-fit: contain;
     }
 
     .login-card {
