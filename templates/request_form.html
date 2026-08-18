@@ -6,7 +6,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h4 mb-1">{{ page_title }}</h1>
-                <p class="text-muted small mb-0">ATLAS — Agentic Triage and Learning Action System; complete all sections before submitting</p>
+                <p class="text-muted small mb-0">Secure Ticket Management System; complete all sections before submitting</p>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                 {% if intake_request %}
@@ -41,50 +41,6 @@
                     This request has been reviewed and is now read-only. You can no longer edit or delete it.
                 </div>
             {% endif %}
-
-            <div class="card border-0 shadow-sm mb-3" id="aiIntakePanel">
-                <div class="card-header py-2 px-4 d-flex justify-content-between align-items-center gap-2 flex-wrap ai-assistant-header">
-                    <span class="fw-semibold small text-uppercase">AI Intake Assistant (WIP)</span>
-                    <span class="badge text-bg-secondary">Draft Autofill</span>
-                </div>
-                <div class="card-body p-4">
-                    {% if not ai_intake_configured %}
-                        <div class="alert alert-warning py-2 px-3 small mb-3" role="status">
-                            <div class="fw-semibold mb-1">⚠️ Work in Progress (WIP)</div>
-                            <div>AI extraction has not yet been configured.</div>
-                            <div>Configure <strong>AI_INTAKE_PROVIDER</strong> and the required provider credentials to enable this feature.</div>
-                        </div>
-                        <div class="small text-muted ai-wip-note mb-3">
-                            This feature is planned to support voice input, transcript parsing, and AI-assisted request generation.
-                        </div>
-                    {% endif %}
-                    <p class="text-muted small mb-3">
-                        Speak into the microphone, paste a transcript, or type a natural-language request. AI will populate matching fields for your review.
-                    </p>
-                    <div class="d-flex gap-2 flex-wrap mb-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="aiMicToggle">
-                            <i class="bi bi-mic me-1" aria-hidden="true"></i>
-                            Start Mic
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" id="aiGenerateBtn">Extract & Autofill</button>
-                    </div>
-                    <textarea
-                        class="form-control"
-                        id="aiIntakeInput"
-                        rows="4"
-                        placeholder="Paste transcript or describe the request in natural language..."
-                    ></textarea>
-                    <div class="form-text">The form is never auto-submitted. You can edit all AI-generated values before saving.</div>
-                    <div id="aiIntakeAlert" class="alert alert-info py-2 px-3 small mt-3 d-none" role="status"></div>
-                    <div id="aiSummaryPanel" class="ai-summary-panel mt-3 d-none" aria-live="polite">
-                        <div class="fw-semibold small mb-2">AI extraction summary</div>
-                        <div class="small mb-1">AI extracted:</div>
-                        <ul class="small mb-2" id="aiExtractedList"></ul>
-                        <div class="small mb-1">Missing:</div>
-                        <ul class="small mb-0" id="aiMissingList"></ul>
-                    </div>
-                </div>
-            </div>
 
             <!-- ── Section 1: Request Details ── -->
             <div class="card border-0 shadow-sm mb-4">
@@ -373,45 +329,6 @@
     var badge = document.getElementById('priorityBadge');
     var priorityLevelsEl = document.getElementById('priority-levels-data');
     var priorityLevels = priorityLevelsEl ? JSON.parse(priorityLevelsEl.textContent) : [];
-    var aiMicToggle = document.getElementById('aiMicToggle');
-    var aiGenerateBtn = document.getElementById('aiGenerateBtn');
-    var aiIntakeInput = document.getElementById('aiIntakeInput');
-    var aiIntakeAlert = document.getElementById('aiIntakeAlert');
-    var aiSummaryPanel = document.getElementById('aiSummaryPanel');
-    var aiExtractedList = document.getElementById('aiExtractedList');
-    var aiMissingList = document.getElementById('aiMissingList');
-
-    var aiFieldLabels = {
-        project_name: 'Project Name',
-        description: 'Description',
-        business_outcome: 'Business Outcome',
-        stakeholder_group: 'Stakeholder Group',
-        requested_by: 'Requested By',
-        assigned_lead: 'Assigned Lead',
-        start_date: 'Start Date',
-        status: 'Status',
-        business_value: 'Business Value',
-        business_value_rationale: 'Business Value Rationale',
-        reach: 'Reach',
-        reach_rationale: 'Reach Rationale',
-        feasibility: 'Feasibility',
-        feasibility_rationale: 'Feasibility Rationale',
-        reuse: 'Reuse',
-        reuse_rationale: 'Reuse Rationale',
-        risk_compliance: 'Risk / Compliance',
-        risk_compliance_rationale: 'Risk / Compliance Rationale'
-    };
-
-    var scoreFields = {
-        business_value: true,
-        reach: true,
-        feasibility: true,
-        reuse: true,
-        risk_compliance: true
-    };
-
-    var speechRecognition = null;
-    var isListening = false;
 
     function update() {
         var total = 0;
@@ -425,226 +342,11 @@
         badge.className = 'badge fs-6 px-3 py-2 ' + matched.badge_class;
     }
 
-    function showAIAlert(message, level) {
-        if (!aiIntakeAlert) {
-            return;
-        }
-        aiIntakeAlert.className = 'alert py-2 px-3 small mt-3';
-        aiIntakeAlert.classList.add('alert-' + (level || 'info'));
-        aiIntakeAlert.textContent = message;
-        aiIntakeAlert.classList.remove('d-none');
-    }
 
-    function clearAIAlert() {
-        if (!aiIntakeAlert) {
-            return;
-        }
-        aiIntakeAlert.classList.add('d-none');
-        aiIntakeAlert.textContent = '';
-    }
 
-    function renderSummary(extractedFields, missingFields) {
-        if (!aiSummaryPanel || !aiExtractedList || !aiMissingList) {
-            return;
-        }
-        aiExtractedList.innerHTML = '';
-        aiMissingList.innerHTML = '';
 
-        extractedFields.forEach(function (field) {
-            var li = document.createElement('li');
-            li.textContent = '\u2713 ' + (aiFieldLabels[field] || field);
-            aiExtractedList.appendChild(li);
-        });
 
-        missingFields.forEach(function (field) {
-            var li = document.createElement('li');
-            li.textContent = '- ' + (aiFieldLabels[field] || field);
-            aiMissingList.appendChild(li);
-        });
 
-        if (!extractedFields.length) {
-            var none = document.createElement('li');
-            none.textContent = '- No fields extracted';
-            aiExtractedList.appendChild(none);
-        }
-
-        if (!missingFields.length) {
-            var complete = document.createElement('li');
-            complete.textContent = '- None';
-            aiMissingList.appendChild(complete);
-        }
-
-        aiSummaryPanel.classList.remove('d-none');
-    }
-
-    function markAIGenerated(el, isScore) {
-        el.classList.remove('ai-generated-field', 'ai-generated-score');
-        if (isScore) {
-            el.classList.add('ai-generated-score');
-        } else {
-            el.classList.add('ai-generated-field');
-        }
-    }
-
-    function applySelectValue(selectEl, rawValue) {
-        var value = (rawValue || '').trim();
-        if (!value) {
-            return false;
-        }
-
-        var normalized = value.toLowerCase();
-        var matchedOption = Array.prototype.find.call(selectEl.options, function (opt) {
-            return String(opt.value || '').toLowerCase() === normalized
-                || String(opt.text || '').toLowerCase() === normalized;
-        });
-
-        if (!matchedOption) {
-            return false;
-        }
-
-        selectEl.value = matchedOption.value;
-        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-    }
-
-    function applyAIData(data) {
-        var appliedFields = [];
-        Object.keys(aiFieldLabels).forEach(function (fieldName) {
-            if (!Object.prototype.hasOwnProperty.call(data, fieldName)) {
-                return;
-            }
-
-            var rawValue = data[fieldName];
-            var value = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
-            if (!value) {
-                return;
-            }
-
-            var el = document.getElementById(fieldName);
-            if (!el || el.disabled || el.readOnly) {
-                return;
-            }
-
-            var applied = false;
-            if (el.tagName === 'SELECT') {
-                applied = applySelectValue(el, value);
-            } else {
-                el.value = value;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                if (el.classList.contains('score-input')) {
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                applied = true;
-            }
-
-            if (applied) {
-                markAIGenerated(el, !!scoreFields[fieldName]);
-                appliedFields.push(fieldName);
-            }
-        });
-
-        update();
-        return appliedFields;
-    }
-
-    function startListening() {
-        var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Recognition) {
-            showAIAlert('Microphone transcription is not supported in this browser. Paste or type text instead.', 'warning');
-            return;
-        }
-
-        speechRecognition = new Recognition();
-        speechRecognition.lang = 'en-US';
-        speechRecognition.continuous = true;
-        speechRecognition.interimResults = false;
-
-        speechRecognition.onresult = function (event) {
-            var transcript = '';
-            for (var i = event.resultIndex; i < event.results.length; i += 1) {
-                transcript += event.results[i][0].transcript + ' ';
-            }
-            if (aiIntakeInput) {
-                aiIntakeInput.value = (aiIntakeInput.value + ' ' + transcript).trim();
-            }
-        };
-
-        speechRecognition.onerror = function () {
-            showAIAlert('Microphone capture failed. You can still paste or type the request.', 'warning');
-        };
-
-        speechRecognition.onend = function () {
-            isListening = false;
-            if (aiMicToggle) {
-                aiMicToggle.innerHTML = '<i class="bi bi-mic me-1" aria-hidden="true"></i>Start Mic';
-            }
-        };
-
-        speechRecognition.start();
-        isListening = true;
-        if (aiMicToggle) {
-            aiMicToggle.innerHTML = '<i class="bi bi-mic-mute me-1" aria-hidden="true"></i>Stop Mic';
-        }
-        clearAIAlert();
-    }
-
-    function stopListening() {
-        if (speechRecognition && isListening) {
-            speechRecognition.stop();
-        }
-        isListening = false;
-        if (aiMicToggle) {
-            aiMicToggle.innerHTML = '<i class="bi bi-mic me-1" aria-hidden="true"></i>Start Mic';
-        }
-    }
-
-    function runAIExtraction() {
-        var sourceText = aiIntakeInput ? aiIntakeInput.value.trim() : '';
-        if (!sourceText) {
-            showAIAlert('Please provide audio transcript or request text before extraction.', 'warning');
-            return;
-        }
-
-        clearAIAlert();
-        aiGenerateBtn.disabled = true;
-        aiGenerateBtn.textContent = 'Extracting...';
-
-        fetch('{{ url_for("ai_extract_intake_request") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text: sourceText })
-        })
-            .then(function (response) {
-                return response.json().then(function (payload) {
-                    return { ok: response.ok, payload: payload };
-                });
-            })
-            .then(function (result) {
-                if (!result.ok || !result.payload.ok) {
-                    showAIAlert(result.payload.message || 'AI extraction failed. Please try again.', 'warning');
-                    return;
-                }
-
-                var data = result.payload.data || {};
-                var appliedFields = applyAIData(data);
-                renderSummary(result.payload.extracted_fields || appliedFields, result.payload.missing_fields || []);
-
-                if (result.payload.message) {
-                    showAIAlert(result.payload.message, 'info');
-                } else {
-                    showAIAlert('AI extraction complete. Review highlighted fields before saving.', 'success');
-                }
-            })
-            .catch(function () {
-                showAIAlert('AI extraction failed. Please try again.', 'warning');
-            })
-            .finally(function () {
-                aiGenerateBtn.disabled = false;
-                aiGenerateBtn.textContent = 'Extract & Autofill';
-            });
-    }
 
     inputs.forEach(function (s) { s.addEventListener('change', update); });
     rationaleInputs.forEach(function (input) {
@@ -680,81 +382,16 @@
         });
     }
 
-    if (aiMicToggle) {
-        aiMicToggle.addEventListener('click', function () {
-            if (isListening) {
-                stopListening();
-            } else {
-                startListening();
-            }
-        });
-    }
-
-    if (aiGenerateBtn) {
-        aiGenerateBtn.addEventListener('click', runAIExtraction);
-    }
-
     update();
 }());
 </script>
 
 <style>
-    .ai-assistant-header {
-        background: #0f172a;
-        color: #ffffff;
-    }
-
-    .ai-summary-panel {
-        border: 1px solid #dbe5f1;
-        background: #f8fbff;
-        border-radius: 0.5rem;
-        padding: 0.75rem;
-    }
-
-    .ai-generated-field {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 0.12rem rgba(59, 130, 246, 0.15);
-        background: #eff6ff;
-    }
-
-    .ai-generated-score {
-        border-color: #f59e0b !important;
-        box-shadow: 0 0 0 0.12rem rgba(245, 158, 11, 0.18);
-        background: #fffbeb;
-    }
-
     /* Small focus cue makes active scoring card easier to track while tabbing. */
     .score-card { background: #f8fafc; transition: border-color 0.15s; }
     .score-card:focus-within { border-color: #2563eb !important; background: #eff6ff; }
     .role-locked-field { background-color: #e5e7eb !important; color: #6b7280; }
     .priority-high-text { color: #fd7e14; }
-
-    [data-theme="dark"] .ai-assistant-header {
-        background: #111c30;
-        color: #dbe4f0;
-    }
-
-    [data-theme="dark"] .ai-summary-panel {
-        border-color: #2a3c5f;
-        background: #111c30;
-        color: #dbe4f0;
-    }
-
-    [data-theme="dark"] .ai-generated-field {
-        border-color: #7fb0ff !important;
-        box-shadow: 0 0 0 0.12rem rgba(127, 176, 255, 0.2);
-        background: #16233a;
-    }
-
-    [data-theme="dark"] .ai-generated-score {
-        border-color: #fbbf24 !important;
-        box-shadow: 0 0 0 0.12rem rgba(251, 191, 36, 0.2);
-        background: #2a2510;
-    }
-
-    [data-theme="dark"] .ai-wip-note {
-        color: #9fb0c9 !important;
-    }
 
     [data-theme="dark"] .score-card {
         background: #111c30;

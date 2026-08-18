@@ -1,9 +1,9 @@
-# ATLAS - Technical Documentation
+# Secure Ticket Management System - Technical Documentation
 
 ## 1. Overview
 
 ### What the app does
-ATLAS (Agentic Triage and Learning Action System) is a Flask web application for submitting, triaging, tracking, and analyzing intake requests.
+This Flask web application supports submitting, triaging, tracking, and analyzing secure ticket requests.
 
 Core capabilities:
 - Authentication with Flask-Login (login, logout, registration)
@@ -27,15 +27,10 @@ ATLAS standardizes intake data and improves prioritization transparency by:
 ## 2. Recent Changes (July 2026)
 
 ### Branding update
-- Product branding is now ATLAS.
-- Header/navbar title now displays:
-  - ATLAS
-  - Agentic Triage and Learning Action System (subtitle)
-- A global footer appears on every page with:
-  - ATLAS
-  - Agentic Triage and Learning Action System
-  - Tagline: Your AI concierge for enablement requests, from intake to prioritization and action.
-- Base page title is updated to ATLAS.
+- Product branding is now the Secure Ticket Management System.
+- Header/navbar title now displays the secure ticket experience in a neutral, reusable format.
+- A global footer appears on every page with a generic secure ticket tagline.
+- Base page title is updated to the secure ticket experience.
 
 ### Admin password management
 - Added admin-only route: `/change_password/<int:user_id>`.
@@ -212,7 +207,7 @@ Priority thresholds (`_calc_priority`):
 
 ### Shared layout behavior
 - Most pages extend `templates/base.html`, which now centralizes:
-  - ATLAS header with subtitle
+  - Secure ticket header content
   - Global footer branding and tagline
   - Flash message rendering
   - Shared theme and date-format helper scripts

@@ -1,20 +1,18 @@
 from datetime import datetime
+import calendar
 import csv
 from io import StringIO
-import calendar as pycalendar
 import re
 import click
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, Response, url_for
+from flask import Flask, flash, redirect, render_template, request, Response, url_for
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect, or_, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from services.ai_intake_service import AIIntakeExtractionService
-
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///intake.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///secure_tickets.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = "change-this-in-production"
 
@@ -101,8 +99,6 @@ RATIONALE_FIELDS = [
     ("risk_compliance_rationale", "Risk / Compliance"),
     ("feasibility_rationale", "Feasibility"),
 ]
-
-ai_intake_service = AIIntakeExtractionService()
 
 
 def _normalize_status(status):
@@ -766,7 +762,7 @@ def calendar_view():
         day_requests.sort(key=lambda item: (-item.total_score, item.priority, item.project_name.lower()))
 
     month_weeks = []
-    for week in pycalendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
+    for week in calendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
         week_days = []
         for day in week:
             if day.weekday() >= 5:
@@ -788,9 +784,9 @@ def calendar_view():
         "calendar.html",
         current_year=year,
         current_month=month,
-        month_name=pycalendar.month_name[month],
+        month_name=calendar.month_name[month],
         month_weeks=month_weeks,
-        day_labels=list(pycalendar.day_abbr[:5]),
+        day_labels=list(calendar.day_abbr[:5]),
         prev_month_url=url_for("calendar_view", year=prev_year, month=prev_month),
         next_month_url=url_for("calendar_view", year=next_year, month=next_month),
         today=today,
@@ -858,51 +854,8 @@ def guide():
     return render_template("guide.html")
 
 
-@app.route("/api/ai/intake-extract", methods=["POST"])
-@login_required
-def ai_extract_intake_request():
-    payload = request.get_json(silent=True) or {}
-    source_text = (payload.get("text") or "").strip()
-
-    if not source_text:
-        return jsonify(
-            {
-                "ok": False,
-                "message": "Please provide audio transcript or request text.",
-                "data": {},
-                "extracted_fields": [],
-                "missing_fields": [],
-            }
-        ), 400
-
-    try:
-        extraction_result = ai_intake_service.extract(source_text)
-    except RuntimeError as exc:
-        return jsonify(
-            {
-                "ok": False,
-                "message": str(exc),
-                "data": {},
-                "extracted_fields": [],
-                "missing_fields": [],
-            }
-        ), 503
-    except Exception:
-        app.logger.exception("AI intake extraction failed.")
-        return jsonify(
-            {
-                "ok": False,
-                "message": "AI extraction failed. Please try again.",
-                "data": {},
-                "extracted_fields": [],
-                "missing_fields": [],
-            }
-        ), 500
-
-    return jsonify({"ok": True, **extraction_result})
-
-
-@app.route("/new", methods=["GET", "POST"])
+@app.route("/new", methods=["GET", "POST"], endpoint="new_request")
+@app.route("/new_ticket", methods=["GET", "POST"], endpoint="new_ticket")
 @login_required
 def new_request():
     def _next_request_number():
@@ -927,7 +880,6 @@ def new_request():
             can_select_requested_by=_can_select_requested_by(),
             users=users,
             default_requested_by=current_user.username,
-            ai_intake_configured=ai_intake_service.is_configured(),
         )
 
     if request.method == "POST":
@@ -1033,7 +985,8 @@ def new_request():
     return _render_new_form(form_data=None)
 
 
-@app.route("/edit/<int:request_id>", methods=["GET", "POST"])
+@app.route("/edit/<int:request_id>", methods=["GET", "POST"], endpoint="edit_request")
+@app.route("/edit_ticket/<int:request_id>", methods=["GET", "POST"], endpoint="edit_ticket")
 @login_required
 def edit_request(request_id):
     intake_request = Request.query.get_or_404(request_id)
@@ -1054,7 +1007,6 @@ def edit_request(request_id):
             can_select_requested_by=_can_select_requested_by(),
             users=User.query.order_by(User.username.asc()).all(),
             default_requested_by=current_user.username,
-            ai_intake_configured=ai_intake_service.is_configured(),
         )
 
     if not _can_edit_request(intake_request):
@@ -1187,7 +1139,8 @@ def edit_request(request_id):
     return _render_edit_form(form_data=None)
 
 
-@app.route("/view/<int:request_id>", methods=["GET"])
+@app.route("/view/<int:request_id>", methods=["GET"], endpoint="view_request")
+@app.route("/view_ticket/<int:request_id>", methods=["GET"], endpoint="view_ticket")
 @login_required
 def view_request(request_id):
     intake_request = Request.query.get_or_404(request_id)
@@ -1240,7 +1193,8 @@ def unmark_request_reviewed(id):
     return redirect(url_for("view_request", request_id=id))
 
 
-@app.route("/delete/<int:id>", methods=["POST"])
+@app.route("/delete/<int:id>", methods=["POST"], endpoint="delete_request")
+@app.route("/delete_ticket/<int:id>", methods=["POST"], endpoint="delete_ticket")
 @login_required
 def delete_request(id):
     intake_request = Request.query.get_or_404(id)
